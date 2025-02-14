@@ -16,7 +16,7 @@ function activate(context) {
     });
 
     let downloadModule = vscode.commands.registerCommand('extension.downloadModule', () => {
-        const url = 'https://raw.githubusercontent.com/yourusername/yourrepo/main/ksbanim.py';
+        const url = 'https://github.com/tunnelrind/ksbanim/main/ksbanim.py';
         const dest = path.join(vscode.workspace.rootPath || '', 'ksbanim.py');
 
         https.get(url, (response) => {
