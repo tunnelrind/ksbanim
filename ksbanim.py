@@ -21,7 +21,7 @@ try:
 except ImportError:
     _install("PyQt5", "", " --quiet --disable-pip-version-check") 
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QDesktopWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QDesktopWidget, QDockWidget, QPushButton, QHBoxLayout
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPixmap, QColor, QPolygon, QTransform, QFont, QFontMetrics
 from PyQt5.QtCore import Qt, QTimer, QPoint, QElapsedTimer, QRect
 
@@ -330,7 +330,6 @@ def kColor(instance, name, *args):
     getter_name = f"get{capitalized_name}"
     setter_name = f"set{capitalized_name}"
 
-
     initial_value = toColor(args)
     
     setattr(instance, private_name, toIntList(initial_value))
@@ -357,7 +356,7 @@ def kColor(instance, name, *args):
     setattr(instance, f"{getter_name}", public_setter)
     setattr(instance, f"{setter_name}", public_getter)
 
-    def public_set_both(value):
+    def public_set_both(*value):
         setattr(instance, private_name, toColor(value))
         setattr(instance, name, toColor(value))
 
@@ -557,7 +556,7 @@ def toIntList(args):
         return list([int(a) for a in args])
     
 def toColor(args):
-    if len(args) == 1 and isinstance(args[0], list):
+    if len(args) == 1 and isinstance(args[0], (list, tuple)):
         if len(args[0]) == 3:
             r, g, b = args[0]
             a = 255
@@ -571,15 +570,16 @@ def toColor(args):
     elif len(args) == 4:
         r, g, b, a = args
     else:
-        raise ValueError("Invalid arguments")
+        raise ValueError("Invalid arguments" + str(args))
 
-    return [r,g,b,a]
+    return [int(r),int(g),int(b),int(a)]
 
 class kStore:
     def __init__(self):
         self.app = None 
         self.pixmap = None 
         self.size = [1000, 1000]
+        self.scale_factor = 1
         self.pos = [500,500]
         self.rot = 0
         self.timer = None 
@@ -598,6 +598,8 @@ class kStore:
         self.fontSize = 12 
         self.fontColor = [255,255,255, 255]
         self.backgroundColor = [0,0,0,255]
+        self.window = None 
+        self.grid = None 
 
     def setPos(self, *point):
         self.pos = toIntList(point)
@@ -653,8 +655,8 @@ class kStore:
     def getFontColor(self):
         return self.fontColor
     
-    def setFontColor(self, *rgb):
-        self.fontColor = toColor(rgb)
+    def setFontColor(self, *rgba):
+        self.fontColor = toColor(rgba)
 
     def getLineColor(self):
         return self.lineColor
@@ -1121,6 +1123,7 @@ class kArc(kShape):
         
         rect = QRect(0, 0, 2 * self._radius, 2 * self._radius)
         self._painter.drawPie(rect, 0, -self._angle * 16)
+        self._painter.end()
 
     def contains(self, x, y):
         local_x = x - self._pos[0]
@@ -1730,10 +1733,10 @@ class kGrid:
         self._createLabels()
         self._drawLines()
 
-    def resize(self, width, height):
+    def resize(self, width, height, scale_factor):
+        self._scale_factor = scale_factor
         self._size[0] = width
         self._size[1] = height
-        self._scale_factor = 1
         self.clear()
         self._createLabels()
         self._drawLines()
@@ -1761,29 +1764,29 @@ class kGrid:
     def _createLabels(self):
         if not kstore.show_grid:
             return 
-
-        for x in range(0, int(self._size[0]), 100):
+        
+        for x in range(100, int(self._size[0]), 100):
             label = QLabel(str(x), self._window)
             label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {self._label_fontSize}px;")
-            label.move(int(x * self._scale_factor), int((self._size[1] - 40) * self._scale_factor))
+            label.move(int(x)+10, int(self._size[1] - 30))
             label.show()
             self._xlabels.append(label)
 
         for y in range(0, int(self._size[1]), 100):
             label = QLabel(str(y), self._window)
             label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {self._label_fontSize}px;")
-            label.move(int(20 * self._scale_factor), int((1000 - y) * self._scale_factor))
+            label.move(int(10), int((self._size[1] - y) - 30))
             label.show()
             self._ylabels.append(label)
 
         self._xlabel = QLabel("x", self._window)
         self._xlabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {self._label_fontSize}px;")
-        self._xlabel.move(int((self._size[0] - 20) * self._scale_factor), int((self._size[1] - 40) * self._scale_factor))
+        self._xlabel.move(int((self._size[0] - 20)), int((self._size[1] - 40) ))
         self._xlabel.show()
 
         self._ylabel = QLabel("y", self._window)
         self._ylabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {self._label_fontSize}px;")
-        self._ylabel.move(int(20 * self._scale_factor), int(0 * self._scale_factor))
+        self._ylabel.move(int(20), 0)
         self._ylabel.show()
 
     def _drawLines(self):
@@ -1807,19 +1810,20 @@ class kGrid:
 class kMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("ksbg Zeichenfläche")
+        self.setWindowTitle("ksbanim drawing surface")
+        self.setWindowFlags(Qt.FramelessWindowHint)
 
         self.fps_buffer = []
         self.fps_label = QLabel(self)
         self.fps_label.setStyleSheet("color: white; background-color: black; font-size: 16px;")
         self.fps_label.resize(100, 30)
-        self.fps_label.move(900, 10)
+        self.fps_label.setText("   ")
         self.fps_label.show()
 
-        self.setSize(kstore.size[0], kstore.size[1])
-
+        self.scale_factor = kstore.scale_factor 
+        
         kstore.elapsed_timer = QElapsedTimer()
-        kstore.grid = kGrid(self, kstore.size[0], kstore.size[1], self.scale_factor)
+        kstore.grid = kGrid(self, kstore.size[0], kstore.size[1], kstore.scale_factor)
 
         self.record = False 
         self.frames = []
@@ -1832,28 +1836,45 @@ class kMainWindow(QMainWindow):
         kstore.cursor = kCursor()
         kstore.cursor.draw()
 
-    def setSize(self, width, height):
-        kstore.size[0] = width
-        kstore.size[1] = height
+        self.closeButton = QPushButton("x", self)
+        self.closeButton.setFixedSize(30, 30)
+        self.closeButton.setStyleSheet("""
+            QPushButton {
+                background-color: #CC0000;
+                color: white;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover {
+                background-color: #FF0000;
+                font-weight: bolder;
+            }
+        """)        
+        self.closeButton.clicked.connect(self.close)
+        self.closeButton.show()
+
+        self.setSize(kstore.size[0], kstore.size[1], kstore.scale_factor)
+        self.center()
+
+    def setSize(self, width, height, scale_factor):
         self.resize(width, height)
-        self.setGeometry(0, 0, width,height)
-        self.scale_factor = 1
+        self.setGeometry(0, 0, width,height)        
         self.center()
         self.pixmap = QPixmap(kstore.size[0], kstore.size[1])
         self.pixmap.fill(QColor(*kstore.backgroundColor))
-        self.fps_label.move(width - 100, 10)
+        self.fps_label.move(width - 100, 0)
+        self.closeButton.move(width-30, 0)
+
+        if kstore.grid is not None:
+            kstore.grid.resize(width, height, scale_factor)
+
+        self.center()
 
     def center(self):
         qr = self.frameGeometry()
         cp = QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
-
-    def scaleContent(self):
-        screen = QDesktopWidget().availableGeometry()
-        self.scale_factor = min((screen.width()-200) / 1000, (screen.height()-200) / 1000)
-
-        self.resize(int(1000 * self.scale_factor), int(1000 * self.scale_factor))
 
     def paintEvent(self, event):
         self.pixmap.fill(QColor(*kstore.backgroundColor))
@@ -1866,15 +1887,27 @@ class kMainWindow(QMainWindow):
         
         painter.drawPixmap(0, 0, self.pixmap)
         painter.drawPixmap(0, 0, kstore.grid._pixmap)
+        
         current_time = kstore.elapsed_timer.elapsed()
-        if len(self.fps_buffer) > 0:
-            elapsed_time = current_time - self.fps_buffer[-1]
-            fps = 1000 / elapsed_time if elapsed_time > 0 else 0
+        
+        if len(self.fps_buffer) > 100:
             self.fps_buffer.append(current_time)
-            if len(self.fps_buffer) > 100:
-                self.fps_buffer.pop(0)
-            average_fps = sum([1000 / (self.fps_buffer[i] - self.fps_buffer[i - 1]) for i in range(1, len(self.fps_buffer))]) / len(self.fps_buffer)
-            self.fps_label.setText(f"fps {average_fps:.2f}")
+            self.fps_buffer.pop(0)
+            
+            fps = 0 
+            fps_length = len(self.fps_buffer)
+
+            for i in range(1, len(self.fps_buffer)):
+                dt = self.fps_buffer[i] - self.fps_buffer[i-1]
+                if dt == 0:
+                    fps_length -= 1
+                    continue
+
+                fps += 1000/dt 
+
+            fps /= fps_length
+
+            self.fps_label.setText(f"fps {fps:.0f}")
         else:
             self.fps_buffer.append(current_time)
 
@@ -2131,26 +2164,23 @@ __all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowW
 
 def createWindow(width=1000, height=1000):
     """
-        create the main drawing window with optional width, height
+    Create the main drawing window with optional width, height.
 
-        **default size**
-        - 0 <= x <= 1000 from left to right
-        - 0 <= y <= 1000 from bottom to top
+    **default size**
+    - 0 <= x <= 1000 from left to right
+    - 0 <= y <= 1000 from bottom to top
 
-        **examples**
-        - createWindow()
-        - createWindow(800,800)
+    **examples**
+    - createWindow()
+    - createWindow(800,800)
     """
     sys.excepthook = exception_hook
 
     kstore.app = QApplication(sys.argv)
     kstore.window = kMainWindow()
+
     kstore.window.show()
-    
-    if width != 1000 or height != 1000:
-        kstore.width = int(width)
-        kstore.height = int(height)
-        setWindowSize(int(width), int(height))
+    setWindowSize(width, height)
 
     kstore.main_timer = QTimer()
     kstore.main_timer.timeout.connect(lambda: action_queue.process())
@@ -2217,17 +2247,29 @@ def setWindowSize(*size):
     size = toIntList(size)
     width = size[0]
     height = size[1]
-    kstore.width = width
-    kstore.height = height
-    kstore.window.pixmap = QPixmap(kstore.width, kstore.height)
-    kstore.window.setSize(width, height)
-    kstore.grid.resize(width, height)
-    kstore.window.center()
+
+    screen = QDesktopWidget().availableGeometry()
+    max_height = screen.height()
+    max_width = screen.width()
+    
+    temp_dock = QDockWidget()
+    dock_height = temp_dock.sizeHint().height()
+    max_height -= dock_height
+
+    window_width = min(width, max_width)
+    window_height = min(height, max_height)
+    
+    kstore.size[0] = window_width
+    kstore.size[1] = window_height
+    kstore.scale_factor = max(width / window_width, height / max_height)
+
+    kstore.window.setSize(kstore.size[0], kstore.size[1], kstore.scale_factor)
 
 def getWindowSize(*size):
     """
         returns window size as a list [x,y] in pixel
     """
+    return [kstore.window.width(), kstore.window.height()]
 
 def run():
     """
@@ -3073,7 +3115,7 @@ def _clear():
     i = 0
     while i < len(shape_buffer):
         shape = shape_buffer[i]
-        if shape.ready:
+        if shape._ready:
             shape_buffer.pop(i)
         else:
             i = i + 1
@@ -3092,6 +3134,8 @@ def getListSample(name):
     """
     return _getSample(name)
 # ==================================== TEST CODE ===========================================
+
+# pdoc -html ksbanim -output-dir ./docs
 
 if __name__ == "__main__":
     print(" > installation successful")
