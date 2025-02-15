@@ -1,38 +1,53 @@
 {
-  "name": "ksbanim-extension",
-  "displayName": "ksbanim Extension",
-  "description": "A VSCode extension that provides ksbanim.py module.",
-  "version": "1.0.0",
-  "engines": {
+    "name": "ksbanim",
+    "displayName": "ksbanim",
+    "description": "an extension to download ksbanim and PyQt5",
+    "version": "1.0.0",
+    "publisher": "ksb",
+    "author": {
+      "name": "Dario Biasini"
+    },
+    "engines": {
       "vscode": "^1.60.0"
-  },
-  "categories": [
+    },
+    "categories": [
+      "Education",
       "Other"
-  ],
-  "activationEvents": [
-      "onCommand:extension.installPyQt5",
-      "onCommand:extension.downloadModule"
-  ],
-  "main": "extension.js",
-  "contributes": {
+    ],
+    "icon": "icon.png",
+    "activationEvents": [
+    ],
+    "license": "GPL-3.0-or-later",
+    "main": "./extension.js",
+    "contributes": {
       "commands": [
+        {
+          "command": "ksbanim.downloadFile",
+          "title": "ksbanim.py"
+        },
+        {
+          "command": "ksbanim.downloadQt",
+          "title": "PyQt5"
+        }
+      ],
+      "views": {
+        "explorer": [
           {
-              "command": "extension.installPyQt5",
-              "title": "Install PyQt5"
-          },
-          {
-              "command": "extension.downloadModule",
-              "title": "Download ksbanim.py"
+            "id": "ksbanim.myCustomView",
+            "name": "ksbanim"
           }
-      ]
-  },
-  "scripts": {
+        ]
+      }
+    },
+    "scripts": {
       "vscode:prepublish": "npm run compile",
-      "compile": "echo 'No TypeScript compilation needed'"
-  },
-  "devDependencies": {},
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/tunnelrind/ksbanim.git"
-}
-}
+      "compile": "tsc -p ./",
+      "watch": "tsc -watch -p ./",
+      "postinstall": "node ./node_modules/vscode/bin/install"
+    },
+    "devDependencies": {
+      "typescript": "^4.0.0",
+      "vscode": "^1.1.37",
+      "@types/node": "^14.14.37"
+    }
+  }
