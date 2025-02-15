@@ -3,9 +3,9 @@
     "displayName": "ksbanim",
     "description": "an extension to download ksbanim and PyQt5",
     "version": "1.0.0",
-    "publisher": "ksb",
+    "publisher": "BiasiniDario",
     "author": {
-      "name": "Dario Biasini"
+      "name": "Biasini Dario"
     },
     "engines": {
       "vscode": "^1.60.0"
@@ -40,13 +40,9 @@
       }
     },
     "scripts": {
-      "vscode:prepublish": "npm run compile",
-      "compile": "tsc -p ./",
-      "watch": "tsc -watch -p ./",
       "postinstall": "node ./node_modules/vscode/bin/install"
     },
     "devDependencies": {
-      "typescript": "^4.0.0",
       "vscode": "^1.1.37",
       "@types/node": "^14.14.37"
     }
