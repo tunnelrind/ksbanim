@@ -2,7 +2,8 @@ const vscode = require('vscode');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, execFile} = require('child_process');
+const os = require('os');
 
 function customLog(msg) {
 	console.log(" > ksbanim " + msg)
@@ -14,17 +15,53 @@ function activate(context) {
 	let downloadFileDisposable = vscode.commands.registerCommand('ksbanim.downloadFile', function () {
 		return downloadKsbanim();
 	});
-
+	
 	let downloadQtDisposable = vscode.commands.registerCommand('ksbanim.downloadQt', function () {
 		return downloadQt();
 	});
 	
+	let downloadPythonExtensionDisposable = vscode.commands.registerCommand('ksbanim.downloadPythonExtension', async function () {
+		await downloadPythonExtension();
+	});
+	
 	context.subscriptions.push(downloadFileDisposable);
 	context.subscriptions.push(downloadQtDisposable);
-
+	context.subscriptions.push(downloadPythonExtensionDisposable)
+	
 	const treeDataProvider = new MyTreeDataProvider();
 	vscode.window.registerTreeDataProvider('ksbanim.myCustomView', treeDataProvider);
 }
+
+async function downloadPythonExtension() {
+	const pythonExtensionId = 'ms-python.python';
+	
+	// Check if the Python extension is already installed
+	const extension = vscode.extensions.getExtension(pythonExtensionId);
+	if (extension) {
+		vscode.window.showInformationMessage('Python extension is already installed.');
+		return;
+	}
+	
+	// Show progress dialog while installing the extension
+	await vscode.window.withProgress({
+		location: vscode.ProgressLocation.Notification,
+		title: "Installing Python extension. Please wait.",
+		cancellable: false
+	}, async (progress) => {
+		return new Promise((resolve, reject) => {
+			vscode.commands.executeCommand('workbench.extensions.installExtension', pythonExtensionId)
+			.then(() => {
+				vscode.window.showInformationMessage('Python extension installed successfully.');
+				resolve();
+			})
+			.catch((error) => {
+				vscode.window.showErrorMessage(`Failed to install Python extension: ${error.message}`);
+				reject(error);
+			});
+		});
+	});
+}
+
 
 async function downloadKsbanim() {
 	return vscode.window.withProgress({
@@ -68,7 +105,25 @@ async function downloadKsbanim() {
 	});
 }
 
-async function downloadQt() {	
+async function checkQtInstalled() {
+	return new Promise((resolve) => {
+		exec('pip show PyQt5', (error, stdout, stderr) => {
+			if (error) {
+				resolve(false);
+			} else {
+				resolve(true);
+			}
+		});
+	});
+}
+
+async function downloadQt() {
+	const isQtInstalled = await checkQtInstalled();
+	if (isQtInstalled) {
+		vscode.window.showInformationMessage('PyQt5 is already installed on your system.');
+		return;
+	}
+	
 	return vscode.window.withProgress({
 		location: vscode.ProgressLocation.Notification,
 		title: "Downloading PyQt5. Please wait.",
@@ -106,6 +161,7 @@ async function downloadQt() {
 	});
 }
 
+
 class MyTreeDataProvider {
 	getTreeItem(element) {
 		return element;
@@ -114,8 +170,9 @@ class MyTreeDataProvider {
 	getChildren(element) {
 		if (!element) {
 			return [
+				new MyTreeItem('python extension', 'ksbanim.downloadPythonExtension'),
+				new MyTreeItem('PyQt5', 'ksbanim.downloadQt'),
 				new MyTreeItem('ksbanim.py', 'ksbanim.downloadFile'),
-				new MyTreeItem('PyQt5', 'ksbanim.downloadQt') // Add this line
 			];
 		}
 		return [];

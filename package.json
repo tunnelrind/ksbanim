@@ -1,8 +1,8 @@
 {
     "name": "ksbanim",
     "displayName": "ksbanim",
-    "description": "an extension to download ksbanim and PyQt5",
-    "version": "1.0.0",
+    "description": "an extension to download the python extension, PyQt5 and ksbanim",
+    "version": "1.0.2",
     "publisher": "BiasiniDario",
     "author": {
       "name": "Biasini Dario"
@@ -18,6 +18,7 @@
     "activationEvents": [
     ],
     "license": "GPL-3.0-or-later",
+    "repository": "https://github.com/tunnelrind/ksbanim.git",
     "main": "./extension.js",
     "contributes": {
       "commands": [
@@ -28,6 +29,10 @@
         {
           "command": "ksbanim.downloadQt",
           "title": "PyQt5"
+        },
+        {
+          "command": "ksbanim.downloadPythonExtension",
+          "title": "extension"
         }
       ],
       "views": {

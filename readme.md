@@ -4,20 +4,22 @@ ksbanim supports the drawing of primitive shapes and user input objects. Through
 
 ## Features
 
-- position and rotate primitive shapes
-- draw circles, ellipses, rectangles, triangle and more
-- draw buttons, labels, text inputs and more
-- manage keyboard and mouse input
-- animate shape transitions
+* position and rotate primitive shapes
+* draw circles, ellipses, rectangles, triangle and more
+* draw buttons, labels, text inputs and more
+* manage keyboard and mouse input
+* animate shape transitions
 
 ## Installation
 
-in the explorer view, use the two buttons to install the necessary dependencies
+in the explorer view, use the buttons to install the necessary dependencies
+
+!screenshot[the download and install buttons are in the bottom of the explorer view]
 
 you need a working installation of python3 and pip
 
-- download ksbanim.py (to the active working directory)
-- download PyQt5 (is installed via pip)
+* download PyQt5 (is getting installed via pip)
+* download ksbanim.py (to the active working directory)
 
 ## Usage
 
