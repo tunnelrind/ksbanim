@@ -37,6 +37,12 @@ drawCircle(100)
 
 run()
 
+## GitHub Documentation
+
+You can view the documentation directly from the repository:
+
+<iframe src="https://raw.githubusercontent.com/your-username/your-repo/main/docs/index.html" width="100%" height="600px"></iframe>
+
 ## Contributing
 
 If you have any questions, feel free to ask via Q&A.
