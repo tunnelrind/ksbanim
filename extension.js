@@ -130,7 +130,7 @@ async function downloadQt() {
 		cancellable: false
 	}, (progress) => {
 		return new Promise((resolve, reject) => {
-			const command = 'pip install PyQt5 --quiet --disable-pip-version-check';
+			const command = 'pip install PyQt5 imageio[ffmpeg] --quiet --disable-pip-version-check';
 			const child = exec(command);
 			
 			let progressInterval = setInterval(() => {

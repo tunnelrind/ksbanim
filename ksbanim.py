@@ -2,28 +2,40 @@ import sys, subprocess
 import math
 import traceback 
 import random
+import threading
+import shutil
+import os
 
-def _install(name, version, options):
-    print("x"*100)
-    print("one time installation of " + name)
+def _install(name, version="", options=""):
+    print("x" * 100)
+    print(f"One-time installation of {name}")
     print("The installation can take some time. Please keep the program running.")
-    print("x"*100)
+    print("x" * 100)
 
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', name + version + options])
+    try:
+        # Split the options into a list
+        options_list = options.split()
+        subprocess.check_call([sys.executable, '-m', 'pip', 'install', name + version] + options_list)
+        print("✔" * 100)
+        print(f"{name} successfully installed")
+        print("✔" * 100)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to install {name}: {e}")
 
-    print("✔"*100)
-    print(name + " successfully installed")
-    print("✔"*100)
-
-      
 try:
     import PyQt5
 except ImportError:
     _install("PyQt5", "", " --quiet --disable-pip-version-check") 
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QDesktopWidget, QDockWidget, QPushButton, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QMainWindow, QLabel, QDesktopWidget, QDockWidget, QOpenGLWidget, QPushButton, QHBoxLayout
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPixmap, QColor, QPolygon, QTransform, QFont, QFontMetrics
-from PyQt5.QtCore import Qt, QTimer, QPoint, QElapsedTimer, QRect
+from PyQt5.QtCore import Qt, QTimer, QPoint, QElapsedTimer, QRect, QBuffer
+
+try: 
+    import imageio
+except ImportError:
+    _install("imageio[ffmpeg]", "", " --quiet --disable-pip-version-check") 
+    import imageio
 
 # ==================================== INTERPOLATION/ACTIONS ===========================================
 def interpolate(begin_value, end_value, fraction):
@@ -62,8 +74,12 @@ INTERPOLATION_FUNCTION = smooth
 
 class kInterpolator:
     def __init__(self, end_value, getter, setter):
-        self.begin_time = kstore.milliseconds
-        self.end_time = kstore.animation + kstore.milliseconds
+        self.immediate = kstore.immediate
+        if self.immediate:
+            self.begin_time = kstore.elapsed_timer.elapsed()
+        else:
+            self.begin_time = kstore.milliseconds
+        self.end_time = kstore.animation + self.begin_time
         self.dt = self.end_time - self.begin_time
         self.end_value = end_value
         self.getter = getter
@@ -90,21 +106,33 @@ class kInterpolator:
 
 class kLoop:
     def __init__(self, loop_function, milliseconds):
-        self.begin_time = kstore.milliseconds
+        self.immediate = kstore.immediate
+        if self.immediate:
+            self.begin_time = 0
+        else:
+            self.begin_time = kstore.milliseconds
         self.loop_function = loop_function 
         self.milliseconds = milliseconds
 
     def process(self, the_time):
         if self.begin_time <= the_time:
+            self.begin_time = the_time - the_time%self.milliseconds + self.milliseconds
+            old_milliseconds = kstore.milliseconds
+            kstore.milliseconds = self.begin_time
             self.loop_function()
-            self.begin_time += self.milliseconds
+            kstore.milliseconds = old_milliseconds
             return 1
         else:
             return 0
         
 class kAction:
     def __init__(self, action_function):
-        self.begin_time = kstore.milliseconds
+        self.immediate = kstore.immediate
+        if self.immediate:
+            self.begin_time = kstore.elapsed_timer.elapsed()
+        else:
+            self.begin_time = kstore.milliseconds
+        
         self.action_function = action_function
     
     def process(self, the_time):
@@ -116,14 +144,18 @@ class kAction:
 
 class kSetter:
     def __init__(self, action_function, *args):
-        self.begin_time = kstore.milliseconds
+        self.immediate = kstore.immediate
+        if self.immediate:
+            self.begin_time = kstore.elapsed_timer.elapsed()
+        else:
+            self.begin_time = kstore.milliseconds
+
         self.action_function = action_function
         self.args = args
     
     def process(self, the_time):
         if self.begin_time <= the_time:
             self.action_function(*self.args)
-
             return -1
         else:
             return 0
@@ -208,9 +240,11 @@ def kValue(instance, name, initial_value):
         return getattr(instance, name, initial_value)
 
     def public_setter(value):
-        setattr(instance, name, value)
-        action_queue.add(kSetter(private_setter, value))
-    
+        
+        def public_setter_inner(the_value = value):
+            setattr(instance, name, the_value)
+            action_queue.add(kSetter(private_setter, the_value))
+        return public_setter_inner()
     
     setattr(instance, f"_{getter_name}", private_getter)
     setattr(instance, f"_{setter_name}", private_setter)
@@ -600,6 +634,7 @@ class kStore:
         self.backgroundColor = [0,0,0,255]
         self.window = None 
         self.grid = None 
+        self.immediate = False
 
     def setPos(self, *point):
         self.pos = toIntList(point)
@@ -821,11 +856,9 @@ class kShape:
 class kEllipse(kShape):
     def __init__(self, a, b):
         super().__init__()
-        self.getA, self.setA = kInt(self, "a", a)
-        self.getB, self.setB = kInt(self, "b", b)
+        self.getA, self.setA = kInt(self, "a", 1)
+        self.getB, self.setB = kInt(self, "b", 1)
         
-        self._a = 1
-        self._b = 1
         kstore.scaleAnim(0.5)
         self.setA(a)
         self.setB(b)
@@ -844,6 +877,9 @@ class kEllipse(kShape):
         if not self._ready:
             return 
 
+        if self._a == 0 or self._b == 0:
+            return
+        
         self._setPainter()
         self._setTransform(the_max)
 
@@ -851,6 +887,9 @@ class kEllipse(kShape):
         self._painter.end()
 
     def contains(self, x, y):
+        if self._a == 0 or self._b == 0:
+            return False 
+        
         center_x, center_y = self.pos
         angle_rad = math.radians(self._rot)
 
@@ -886,10 +925,7 @@ class kCircle(kEllipse):
 class kRect(kShape):
     def __init__(self, *size):
         super().__init__()
-        self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", size)
-
-        self._size[0] = 1
-        self._size[1] = 1
+        self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", [1,1])
 
         kstore.scaleAnim(0.5)
         self.setWidth(size[0])
@@ -904,7 +940,7 @@ class kRect(kShape):
     def setSize(self, *size): pass
 
     def draw(self):            
-        the_max = max(self._size[0], self._size[1])
+        the_max = max(abs(self._size[0]), abs(self._size[1]))
         the_max = int(1.42*the_max)
         self._pixmap = QPixmap(2*the_max, 2*the_max)
         self._pixmap.fill(Qt.transparent)
@@ -912,6 +948,9 @@ class kRect(kShape):
         if not self._ready:
             return 
 
+        if self._size[0] == 0 or self._size[1] == 0:
+            return
+        
         self._setPainter()
         self._setTransform(the_max)
 
@@ -933,15 +972,12 @@ class kRect(kShape):
 class kRoundedRect(kShape):
     def __init__(self, width, height, radius):
         super().__init__()
-        self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", width, height)
-        self.getRadius, self.setRadius = kInt(self, "radius", radius)
+        self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", [1,1])
+        self.getRadius, self.setRadius = kInt(self, "radius", 2)
 
-        self._size[0] = 1
-        self._size[1] = 1
-        self._radius = 1 
         kstore.scaleAnim(0.5)
-        self.setCircle(self.radius)
-        self.setSize([self.size[0], self.size[1]])
+        self.setCircle(radius)
+        self.setSize([width, height])
         kstore.unscaleAnim()
 
     def getWidth(self): pass
@@ -954,7 +990,7 @@ class kRoundedRect(kShape):
     def setRadius(self, radius): pass
 
     def draw(self):          
-        the_max = max(self._size[0], self._size[1])
+        the_max = max(abs(self._size[0]), abs(self._size[1]))
         the_max = int(1.42 * the_max)
         self._pixmap = QPixmap(2 * the_max, 2 * the_max)
         self._pixmap.fill(Qt.transparent)
@@ -962,6 +998,9 @@ class kRoundedRect(kShape):
         if not self._ready:
             return 
 
+        if self._size[0] == 0 or self._size[1] == 0:
+            return
+        
         self._setPainter()
         self._setTransform(the_max)
 
@@ -1009,9 +1048,8 @@ class kRoundedRect(kShape):
 class kTriangle(kShape):
     def __init__(self, length):
         super().__init__()
-        self.getLength, self.setLength = kInt(self, "length", length)
+        self.getLength, self.setLength = kInt(self, "length", 1)
 
-        self._length = 1
         self.setLength(length)
     
     def getLength(self): pass
@@ -1024,7 +1062,10 @@ class kTriangle(kShape):
 
         if not self._ready:
             return 
-            
+        
+        if self._length == 0:
+            return
+        
         self._setPainter()
         self._setTransform(the_max)
 
@@ -1099,9 +1140,8 @@ class kArc(kShape):
     def __init__(self, radius, angle):
         super().__init__()
         self.getRadius, self.setRadius = kInt(self, "radius", radius)
-        self.getAngle, self.setAngle = kInt(self, "angle", angle)
+        self.getAngle, self.setAngle = kInt(self, "angle", 1)
 
-        self._angle = 1
         self.setAngle(angle)
 
 
@@ -1117,7 +1157,10 @@ class kArc(kShape):
 
         if not self._ready:
             return 
-            
+        
+        if self._radius == 0 or self._angle == 0:
+            return
+        
         self._setPainter()
         self._setTransform(the_max)
         
@@ -1146,11 +1189,9 @@ class kArc(kShape):
 class kLine(kShape):
     def __init__(self, *size):
         super().__init__()
-        self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", size)
+        self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", [4,4])
 
-        self._size[0] = 1
-        self._size[1] = 1
-        self.setSize(size)
+        self.setSize(toIntList(size))
 
     def getWidth(self): pass
     def setWidth(self, width): pass
@@ -1166,14 +1207,17 @@ class kLine(kShape):
         self._painter = painter
 
     def draw(self):
-        the_max = max(self._size[0], self._size[1])
+        the_max = max(abs(self._size[0]), abs(self._size[1]))
         the_max = int(1.42*the_max)
         self._pixmap = QPixmap(2*the_max, 2*the_max)
         self._pixmap.fill(Qt.transparent)
 
         if not self._ready:
             return 
-            
+        
+        if self._size[0] == 0 or self._size[1] == 0:
+            return
+        
         self._setPainter()
         self._setTransform(the_max)
 
@@ -1288,6 +1332,9 @@ class kButton(kRoundedRect):
         if not self._ready:
             return 
 
+        if self._size[0] == 0 or self._size[1] == 0:
+            return
+        
         self._setPainter()
         self._setTransform(the_max)
 
@@ -1356,6 +1403,9 @@ class kLabel(kRoundedRect):
         if not self._ready:
             return
 
+        if self._size[0] == 0 or self._size[1] == 0:
+            return
+        
         self._setPainter()
         self._setTransform(the_max)
             
@@ -1676,7 +1726,11 @@ class kPolygon(kShape):
     def draw(self):
         self._pixmap = QPixmap(kstore.size[0], kstore.size[1])
         self._pixmap.fill(Qt.transparent)
+
         if not self._ready:
+            return 
+
+        if len(self._points) < 3:
             return 
             
         self._setPainter()
@@ -1807,7 +1861,7 @@ class kGrid:
     
 # ==================================== MAIN WINDOW CONTROL ===========================================
 
-class kMainWindow(QMainWindow):
+class kMainWindow(QOpenGLWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ksbanim drawing surface")
@@ -1890,7 +1944,7 @@ class kMainWindow(QMainWindow):
         
         current_time = kstore.elapsed_timer.elapsed()
         
-        if len(self.fps_buffer) > 100:
+        if len(self.fps_buffer) > 10:
             self.fps_buffer.append(current_time)
             self.fps_buffer.pop(0)
             
@@ -1923,7 +1977,15 @@ class kMainWindow(QMainWindow):
         painter.end()
             
         if self.record:
-            self.frames.append(self.captureFrame().toImage())
+            the_time = kstore.elapsed_timer.elapsed()
+            if len(self.frames) > 0:
+                old_time = self.frames[-1][1]
+            else:
+                old_time = 0 
+            
+            dt = the_time - old_time 
+            if dt > 15:
+                self.frames.append((self.captureFrame(), the_time/1000))
 
     def setRecord(self, value):
         self.record = value
@@ -1931,12 +1993,91 @@ class kMainWindow(QMainWindow):
     def captureFrame(self):
         screen = QApplication.primaryScreen()
         screenshot = screen.grabWindow(self.winId())
-        return screenshot
+
+        return screenshot.toImage()
 
     def saveAsPng(self, filename):
         screenshot = self.captureFrame()
         screenshot.save(filename + ".png", 'png')
 
+    def saveAsGif(self, file_name):
+        temp_folder = "temp_screenshots"
+        os.makedirs(temp_folder, exist_ok=True)
+
+        def save_frames():
+            total_time = (self.frames[-1][1] - self.frames[0][1])
+            print(f" > begin saving GIF ({len(self.frames)} frames, duration {round(total_time * 10) / 10} s) - please keep the program running")
+
+            dts = []
+            images = []
+            accumulated_duration = 0
+
+            for i, (frame, duration) in enumerate(self.frames):
+                if i < len(self.frames) - 1:
+                    next_duration = self.frames[i + 1][1] - self.frames[i][1]
+                    if next_duration + accumulated_duration < 0.02:
+                        accumulated_duration += next_duration
+                    else:
+                        buffer = QBuffer()
+                        buffer.open(QBuffer.ReadWrite)
+                        frame.save(buffer, 'PNG')
+                        buffer.seek(0)
+                        images.append(imageio.imread(buffer.data().data()))
+                        dts.append(next_duration + accumulated_duration)
+                        accumulated_duration = 0
+                else:
+                    buffer = QBuffer()
+                    buffer.open(QBuffer.ReadWrite)
+                    frame.save(buffer, 'PNG')
+                    buffer.seek(0)
+                    images.append(imageio.imread(buffer.data().data()))
+                    dts.append(kstore.dt/1000 + accumulated_duration)
+
+            dts = [dt*1000 for dt in dts]
+            imageio.mimsave(file_name + ".gif", images, duration=dts)
+            print(" > GIF saved")
+
+        threading.Thread(target=save_frames).start()
+
+    def saveAsMp4(self, file_name):
+        temp_folder = "temp_screenshots"
+        os.makedirs(temp_folder, exist_ok=True)
+
+        def save_frames():
+            total_time = (self.frames[-1][1] - self.frames[0][1])
+            print(f" > begin saving MP4 ({len(self.frames)} frames, duration {round(total_time * 10) / 10} s) - please keep the program running")
+
+            dts = []
+            images = []
+
+            for i, (frame, duration) in enumerate(self.frames):
+                buffer = QBuffer()
+                buffer.open(QBuffer.ReadWrite)
+                frame.save(buffer, 'PNG')
+                buffer.seek(0)
+                images.append(imageio.imread(buffer.data().data()))
+                if i == len(self.frames) - 1:
+                    dts.append(kstore.dt/1000)
+                else:
+                    dts.append(self.frames[i + 1][1] - self.frames[i][1])
+
+            # Calculate the frame rate based on the average duration
+            average_duration = sum(dts) / len(dts)
+            fps = 1 / average_duration if average_duration > 0 else 30
+
+            writer = imageio.get_writer(file_name + ".mp4", fps=fps, codec='libx264')
+
+            for i, image in enumerate(images):
+                duration = dts[i] if i < len(dts) else average_duration
+                num_frames = int(round(duration * fps))
+                for _ in range(num_frames):
+                    writer.append_data(image)
+
+            writer.close()
+            print(" > MP4 saved")
+
+
+        threading.Thread(target=save_frames).start()
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.close()
@@ -2009,14 +2150,14 @@ class kMainWindow(QMainWindow):
         for handler in on_mouse_pressed_handlers:
             if handler[1] == button_text:
                 pos = event.pos()
-                handler[0](*self.translateMousePos([x, y]), button_text)
+                handler[0](*self.translateMousePos(*pos), button_text)
 
     def translateMousePos(self, pos):
         x = pos[0]
         y = pos[1]
         return [int(x/self.scale_factor), int(kstore.size[1] - y-self.scale_factor)]
     
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event):    
         pos = event.pos()
         pos = self.translateMousePos([pos.x(), pos.y()])
         self.mouse_pos = pos 
@@ -2036,7 +2177,7 @@ class kMainWindow(QMainWindow):
                     shape._onMouseExit()
 
         for handler in on_mouse_moved_handlers:
-            handler(*pos)
+            handler[0](*pos)
 
     def isButtonPressed(self, button):
         return button in self.button_store
@@ -2159,8 +2300,7 @@ def _getSample(name):
 
 # pip install PyQt5
 
-__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPolygon', 'setAnim', 'setDelay', 'setAnimDelay', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'rotate', 'setLine', 'getLine', 'setFill', 'getFill', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setTick', 'getTick', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample"]
-
+__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPolygon', 'setAnim', 'setDelay', 'setAnimDelay', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'rotate', 'setLine', 'getLine', 'setFill', 'getFill', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -2699,17 +2839,6 @@ def getLineWidth():
     """
     return kstore.lineWidth 
 
-def saveAsPng(filename):
-    """
-        save the current window as a png 
-
-        filename is the name of the file (as a string)
-
-        **example**
-        - saveAsPng("screenshot")
-    """
-    action_queue.add(kSetter(kstore.window.saveAsPng, filename))
-
 def setTick(milliseconds):
     """
         set the main timer tick in milliseconds (time between two frames)
@@ -2717,12 +2846,30 @@ def setTick(milliseconds):
         if the drawing operation can't keep up, the real tick (time between two frames) might be larger
     """
     kstore.dt = milliseconds
-    kstore.timer.setInterval(milliseconds)
+    if kstore.timer is not None:
+        kstore.timer.setInterval(milliseconds)
 
 def getTick():
-      """
+    """
         returns the main timer tick in milliseconds
     """
+    return kstore.dt
+
+
+def setFps(fps):
+    """
+        set the main timer fps in frames per second
+
+        if the drawing operation can't keep up, the real tick (time between two frames) might be larger
+    """
+    setTick(1000/fps)
+
+def getFps(fps):
+    """
+        returns the main timer fps in frames per second 
+    """
+
+    return 1000/kstore.dt
 
 def onTick(tick_function, milliseconds=0):
     """
@@ -2739,13 +2886,25 @@ def onTick(tick_function, milliseconds=0):
 
         onTick(loop, 100) *# draws one circle every 100 ms*
     """
-    action_queue.add(kLoop(tick_function, milliseconds))
 
+    kstore.immediate = True
+    kstore.scaleAnim(0)
+    action_queue.add(kLoop(tick_function, milliseconds))
+    kstore.unscaleAnim()
+    kstore.immediate = False
+    
 def removeOnTick(tick_function):
     """
         removes the tick function
     """
-    pass 
+    i = 0
+    while i < len(action_queue):
+        action = action_queue[i]
+        if action.loop_function == tick_function:
+            action_queue.pop(i)
+        else:
+            i = i + 1
+    
 
 on_key_pressed_handlers = []
 on_key_released_handlers = []
@@ -2766,10 +2925,12 @@ def onKeyPressed(handler_function, key=None):
         onKeyPressed(print, "a") *# only executes if a was pressed*
     """
     def submit(the_key):
+        kstore.immediate = True
         if key is not None and the_key == key:                  
             handler_function(the_key)
         elif key is None:
             handler_function(the_key)
+        kstore.immediate = False
 
     on_key_pressed_handlers.append((submit, key, handler_function))
 
@@ -2798,10 +2959,12 @@ def onKeyReleased(handler_function, key=None):
         onKeyReleased(print, "a") *# only executes if a was released*
     """
     def submit(the_key):
+        kstore.immediate = True
         if key is not None and the_key == key:                  
             handler_function(the_key)
         elif key is None:
             handler_function(the_key)
+        kstore.immediate = False 
 
     on_key_released_handlers.append((submit, key, handler_function))
 
@@ -2838,10 +3001,12 @@ def onMousePressed(handler_function, button):
         onButtonPressed(button_press, "left") *# only executes if the left button was pressed*
     """
     def submit(x, y, the_button):
+        kstore.immediate = True
         if button is not None and the_button == button:                  
             handler_function(x, y, the_button)
         elif button is None:
             handler_function(x, y, the_button)
+        kstore.immediate = False 
 
     on_mouse_pressed_handlers.append((submit, button , handler_function))
 
@@ -2875,11 +3040,13 @@ def onMouseReleased(handler_function, button):
         onButtonReleased(button_release, "left") *# only executes if the left button was released*
     """
     def submit(x, y, the_button):
+        kstore.immediate = True 
         if button is not None and the_button == button:                  
             handler_function(x,y, the_button)
         elif button is None:
             handler_function(x, y, the_button)
-            
+        kstore.immediate = False 
+
     on_mouse_released_handlers.append((submit, button, handler_function))
     return submit
 
@@ -2897,23 +3064,35 @@ def removeOnMouseReleased(handler_function):
 
 def onMouseMoved(handler_function):
     """
-        executes the handler_function(key) if a the key is released
+        executes the handler_function(x,y) if a the mouse has moved
         
-        - the handler_function excpects a single argument *key* (a string)
-        - if no key (as string) is given, the function is executed on any key release
+        - the handler_function excpects a two arguments *x* and *y*
 
         **examples**
 
-        onKeyReleased(print) *# executes on every key release*
-        onKeyReleased(print, "a") *# only executes if a was released*
+        def handler(x,y):
+            print(x,y)
+        onMouseMoved(handler) 
     """
-    on_mouse_moved_handlers.append(handler_function)
+
+    def submit(x,y):
+        kstore.immediate = True 
+        handler_function(x,y)
+        kstore.immediate = False 
+
+    on_mouse_moved_handlers.append((submit, handler_function))
 
 def removeOnMouseMoved(handler_function):
     """
         removes the mouse move handler
     """
-    on_mouse_pressed_handlers.remove(handler_function)
+    target = on_mouse_moved_handlers
+    i = 0
+    while i < len(target):
+        if target[i][1] == handler_function:
+            target.pop(i)
+        else:
+            i += 1
 
 def isKeyPressed(key):
     """
@@ -2970,7 +3149,7 @@ def drawInput(label="", handler=None):
         move(0,-100)
         drawButton("submit", print_input)
     """
-    input = kInput(handler, label)
+    input = kInput(handler, str(label))
     input.draw()
     return input 
 
@@ -2984,7 +3163,7 @@ def drawLabel(text):
 
         drawLabel("hello world\\n good bye world")
     """
-    label = kLabel(text)
+    label = kLabel(str(text))
     label.draw()
     return label 
 
@@ -2996,7 +3175,7 @@ def drawText(text):
 
         drawText("hello world")
     """
-    label = kLabel(text)
+    label = kLabel(str(text))
     label._fill = False 
     label.fill = False 
     label._line = False 
@@ -3011,7 +3190,7 @@ def drawText(text):
     label.draw()
     return label 
 
-def drawButton(label, handler):
+def drawButton(handler, label):
     """
         draws an button with default width 200 and height 50
 
@@ -3026,7 +3205,7 @@ def drawButton(label, handler):
         
         drawButton("hello", print_input)
     """
-    button = kButton(handler, label)
+    button = kButton(handler, str(label))
     button.draw()
     return button
 
@@ -3069,17 +3248,90 @@ def getFontColor():
     """
     return kstore.getFontColor()
 
-# def beginRecording():
-#     action_queue.add(kSetter(kstore.window.setRecord, True))
+def saveAsPng(filename):
+    """
+        save the current window as a png 
 
-# def endRecording():
-#     action_queue.add(kSetter(kstore.window.setRecord, False))
+        filename is the name of the file (as a string)
 
-# def saveAsMp4(filename, fps):
-#     action_queue.add(kSetter(kstore.window.saveAsMp4, filename, fps))
+        **example**
+        - saveAsPng("screenshot")
+    """
+    kstore.scaleAnim(0)
+    action_queue.add(kSetter(kstore.window.saveAsPng, filename))
+    kstore.unscaleAnim()
 
-# def saveAsGif(filename, fps):
-#     action_queue.add(kSetter(kstore.window.saveAsGif, filename, fps))
+def beginRecording():
+    """
+        activate frame capture
+
+        **example**
+
+        beginRecording()
+        
+        ... 
+
+        endRecording()
+
+        saveAsGif("example")
+    """
+    kstore.scaleAnim(0)
+    action_queue.add(kSetter(kstore.window.setRecord, True))
+    kstore.unscaleAnim()
+
+def endRecording():
+    """
+        end frame capture
+
+        **example**
+
+        beginRecording()
+        
+        ... 
+
+        endRecording()
+
+        saveAsGif("example")
+    """
+    kstore.scaleAnim(0)
+    action_queue.add(kSetter(kstore.window.setRecord, False))
+    kstore.unscaleAnim()
+
+def saveAsMp4(filename):
+    """
+        save captured frames as a mp4 movie
+
+        **example**
+
+        beginRecording()
+        
+        ... 
+
+        endRecording()
+
+        saveAsMp4("example")
+    """
+    kstore.scaleAnim(0)
+    action_queue.add(kSetter(kstore.window.saveAsMp4, filename))
+    kstore.unscaleAnim()
+
+def saveAsGif(filename):
+    """
+        save captured frames as a GIF
+
+        **example**
+
+        beginRecording()
+        
+        ... 
+
+        endRecording()
+
+        saveAsGif("example")
+    """
+    kstore.scaleAnim(0)
+    action_queue.add(kSetter(kstore.window.saveAsGif, filename))
+    kstore.unscaleAnim()
 
 def setAnimationType(type):
     """
