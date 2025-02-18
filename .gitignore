@@ -1,9 +1,8 @@
 __pycache__/ksbanim.cpython-311.pyc
-extension.js
-ksbanim-extension-1.0.0.vsix
-package.json
+ksbanim-extension-*
 ksbanim_test.py
 test.py 
 ksb_kivy.py
 test_code
 ksbanim-1.0.0.vsix
+__pychache__

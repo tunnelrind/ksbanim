@@ -39,9 +39,9 @@ run()
 
 ## GitHub Documentation
 
-You can view the documentation directly from the repository:
+You can view the documentation [here](https://dev.lernbaum.ch/scr/ksbanim/index.html).
 
-<iframe src="https://raw.githubusercontent.com/your-username/your-repo/main/docs/index.html" width="100%" height="600px"></iframe>
+<iframe src="https://dev.lernbaum.ch/scr/ksbanim/index.html" width="100%" height="600px"></iframe>
 
 ## Contributing
 

@@ -2,7 +2,7 @@
     "name": "ksbanim",
     "displayName": "ksbanim",
     "description": "an extension to download the python extension, PyQt5 and ksbanim",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "publisher": "BiasiniDario",
     "author": {
       "name": "Biasini Dario"
