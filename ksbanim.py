@@ -38,7 +38,7 @@ except ImportError:
 
 from PyQt5.QtWidgets import QApplication, QLabel, QDesktopWidget, QDockWidget, QOpenGLWidget, QPushButton
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPixmap, QColor, QTransform, QFont, QFontMetrics, QSurfaceFormat, QOpenGLContext
-from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QRect, QBuffer, QEvent
+from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QRect, QBuffer
 
 try: 
     import imageio
@@ -2167,7 +2167,7 @@ class kUIElement:
 
         painter = QPainter(self._pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-
+        
         if self._fill:
             painter.setBrush(QBrush(QColor(*self._fillColor), Qt.SolidPattern))
         else:
@@ -2182,6 +2182,7 @@ class kUIElement:
         transform.translate(the_max, the_max)
         transform.rotate(-self._rot)
         transform.translate(-the_max, -the_max)
+
         painter.setTransform(transform)
 
         painter.drawRoundedRect(the_max, the_max, int(self._size[0]), int(self._size[1]), int(self._radius), int(self._radius))
@@ -2606,7 +2607,7 @@ class kInput(kLabel):
 
 class kGrid:
     def __init__(self, window, width, height, scale_factor):
-        self._size = [width, height]
+        self._size = [int(width*scale_factor),int( height*scale_factor)]
         self._scale_factor = scale_factor
         self._label_fontSize = 14
         self._window = window
@@ -2622,8 +2623,8 @@ class kGrid:
 
     def resize(self, width, height, scale_factor):
         self._scale_factor = scale_factor
-        self._size[0] = width
-        self._size[1] = height
+        self._size[0] = int(width*scale_factor)
+        self._size[1] = int(height*scale_factor)
         self.clear()
         self._createLabels()
         self._drawLines()
@@ -2654,25 +2655,25 @@ class kGrid:
         
         for x in range(100, int(self._size[0]), 100):
             label = QLabel(str(x), self._window)
-            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {self._label_fontSize}px;")
-            label.move(int(x)+10, int(self._size[1] - 30))
+            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize/self._scale_factor)}px;")
+            label.move(int(x/self._scale_factor)+10, int(self._size[1]/self._scale_factor - 30))
             label.show()
             self._xlabels.append(label)
 
         for y in range(0, int(self._size[1]), 100):
             label = QLabel(str(y), self._window)
-            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {self._label_fontSize}px;")
-            label.move(int(10), int((self._size[1] - y) - 30))
+            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize/self._scale_factor)}px;")
+            label.move(int(10), int((self._size[1]/self._scale_factor - y/self._scale_factor) - 30))
             label.show()
             self._ylabels.append(label)
 
         self._xlabel = QLabel("x", self._window)
-        self._xlabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {self._label_fontSize}px;")
-        self._xlabel.move(int((self._size[0] - 20)), int((self._size[1] - 40) ))
+        self._xlabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize/self._scale_factor)}px;")
+        self._xlabel.move(int((self._size[0]/self._scale_factor - 20)), int((self._size[1]/self._scale_factor - 40) ))
         self._xlabel.show()
 
         self._ylabel = QLabel("y", self._window)
-        self._ylabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {self._label_fontSize}px;")
+        self._ylabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize/self._scale_factor)}px;")
         self._ylabel.move(int(20), 0)
         self._ylabel.show()
 
@@ -2839,15 +2840,7 @@ class kMainWindow(QOpenGLWidget):
         glTranslated(0, 0, 0)
         
     def resizeGL(self, width, height): 
-        # glViewport(0, 0, 10, height)
-
-        glMatrixMode(GL_PROJECTION)
-        # Set up an orthographic projection
-        # aspect_ratio = width / height if height != 0 else 1
-        # if aspect_ratio > 1:
-        #     glOrtho(0, width, 0, height, -100, 100)
-        # else:
-        #     glOrtho(-1, 1, -1 / aspect_ratio, 1 / aspect_ratio, -1, 1)
+        glMatrixMode(GL_PROJECTION)   
         glLoadIdentity()
         glOrtho(0, kstore.size[0], 0, kstore.size[1], -10, 10)
 
@@ -2908,13 +2901,12 @@ class kMainWindow(QOpenGLWidget):
         glPopMatrix()
         glPopAttrib()
         painter.endNativePainting()
-        
+        painter.scale(1/kstore.scale_factor, 1/kstore.scale_factor)
         painter.setRenderHint(QPainter.Antialiasing)
         self.drawGrid(painter)
         for ui_element in ui_buffer:
             if ui_element._ready:
                 painter.drawPixmap(int(ui_element._pos[0]-ui_element._pixmap.width()//2), int(kstore.size[1] - ui_element._pos[1] - ui_element._pixmap.height()/2 - ui_element._size[1]), ui_element._pixmap)
-
 
         self.updateFps()
 
@@ -3105,7 +3097,7 @@ class kMainWindow(QOpenGLWidget):
     def translateMousePos(self, pos):
         x = pos[0]
         y = pos[1]
-        return [int(x/self.scale_factor), int(kstore.size[1] - y-self.scale_factor)]
+        return [int(x*kstore.scale_factor), int(kstore.size[1] - y*kstore.scale_factor)]
     
     def mouseMoveEvent(self, event):    
         pos = event.pos()
@@ -3285,7 +3277,7 @@ def createWindow(width=1000, height=1000):
     kstore.window = kMainWindow()
 
     kstore.window.show()
-    setWindowSize(width, height)
+    initWindowSize()
 
     kstore.main_timer = QTimer()
     kstore.main_timer.timeout.connect(lambda: action_queue.process())
@@ -3340,6 +3332,23 @@ def getWindowHeight():
         get window height(y) in pixel
     """
     return kstore.window.height() 
+
+def initWindowSize():
+    screen = QDesktopWidget().availableGeometry()
+    max_height = screen.height()
+    max_width = screen.width()
+    
+    temp_dock = QDockWidget()
+    dock_height = temp_dock.sizeHint().height()
+    max_height -= dock_height
+
+    size = int(0.9*min(max_width, max_height))
+    
+    kstore.size[0] = 1000
+    kstore.size[1] = 1000
+    kstore.scale_factor = 1000/size
+
+    kstore.window.setSize(size, size, kstore.scale_factor)
 
 def setWindowSize(*size):
     """
