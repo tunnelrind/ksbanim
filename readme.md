@@ -20,7 +20,7 @@ In the explorer view, use the three buttons at the bottom left (KSBANIM) to inst
 
 
 * download python extension for VSC
-* download PyQt5 (is getting installed via pip)
+* download PyQt5 and imageio[ffmpeg] (is getting installed via pip)
 * download ksbanim.py (to the active working directory)
 
 ## Usage Example
@@ -40,8 +40,6 @@ run()
 ## GitHub Documentation
 
 You can view the documentation [here](https://dev.lernbaum.ch/scr/ksbanim/index.html).
-
-<iframe src="https://dev.lernbaum.ch/scr/ksbanim/index.html" width="100%" height="600px"></iframe>
 
 ## Contributing
 

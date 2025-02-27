@@ -4,5 +4,5 @@ ksbanim_test.py
 test.py 
 ksb_kivy.py
 test_code
-ksbanim-1.0.0.vsix
+*.vsix
 __pychache__

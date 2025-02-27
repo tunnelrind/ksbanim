@@ -19,6 +19,11 @@ function activate(context) {
 	let downloadQtDisposable = vscode.commands.registerCommand('ksbanim.downloadQt', function () {
 		return downloadQt();
 	});
+
+	let downloadOpenGLDisposable = vscode.commands.registerCommand('ksbanim.downloadOpenGL', function () {
+		return downloadOpenGL();
+	});
+	
 	
 	let downloadPythonExtensionDisposable = vscode.commands.registerCommand('ksbanim.downloadPythonExtension', async function () {
 		await downloadPythonExtension();
@@ -26,6 +31,7 @@ function activate(context) {
 	
 	context.subscriptions.push(downloadFileDisposable);
 	context.subscriptions.push(downloadQtDisposable);
+	context.subscriptions.push(downloadOpenGLDisposable);
 	context.subscriptions.push(downloadPythonExtensionDisposable)
 	
 	const treeDataProvider = new MyTreeDataProvider();
@@ -38,7 +44,7 @@ async function downloadPythonExtension() {
 	// Check if the Python extension is already installed
 	const extension = vscode.extensions.getExtension(pythonExtensionId);
 	if (extension) {
-		vscode.window.showInformationMessage('Python extension is already installed.');
+		vscode.window.showInformationMessage('Python extension is already installed in VSC.');
 		return;
 	}
 	
@@ -74,8 +80,7 @@ async function downloadKsbanim() {
 			const workspaceFolders = vscode.workspace.workspaceFolders;
 			
 			if (!workspaceFolders) {
-				vscode.window.showErrorMessage('No workspace folder is open.');
-				reject('No workspace folder is open.');
+				reject('No workspace folder is open. Please open a folder (File -> Open Folder).');
 				return;
 			}
 			
@@ -94,7 +99,6 @@ async function downloadKsbanim() {
 				file.on('finish', () => {
 					file.close();
 					vscode.window.showInformationMessage('ksbanim.py downloaded successfully!');
-					console.log('ksbanim.py downloaded successfully!');
 					resolve();
 				});
 			}).on('error', (error) => {
@@ -126,7 +130,7 @@ async function downloadQt() {
 	
 	return vscode.window.withProgress({
 		location: vscode.ProgressLocation.Notification,
-		title: "Downloading PyQt5. Please wait.",
+		title: "Downloading PyQt5 and imageio[ffmpeg]. Please wait.",
 		cancellable: false
 	}, (progress) => {
 		return new Promise((resolve, reject) => {
@@ -147,8 +151,63 @@ async function downloadQt() {
 					vscode.window.showInformationMessage('PyQt5 downloaded and installed successfully.');
 					resolve();
 				} else {
-					vscode.window.showErrorMessage('Failed to download PyQt5.');
-					reject(new Error('Failed to download PyQt5.'));
+					reject(new Error('Failed to download PyQt5 and/or imageio[ffmpeg].'));
+				}
+			});
+			
+			child.on('error', (error) => {
+				clearInterval(progressInterval);
+				vscode.window.showErrorMessage(`Error: ${error.message}`);
+				reject(error);
+			});
+		});
+	});
+}
+
+
+async function checkOpenGLInstalled() {
+	return new Promise((resolve) => {
+		exec('pip show PyOpenGL', (error, stdout, stderr) => {
+			if (error) {
+				resolve(false);
+			} else {
+				resolve(true);
+			}
+		});
+	});
+}
+
+async function downloadOpenGL() {
+	const isOpenGLInstalled = await checkOpenGLInstalled();
+	if (isOpenGLInstalled) {
+		vscode.window.showInformationMessage('OpenGL is already installed on your system.');
+		return;
+	}
+	
+	return vscode.window.withProgress({
+		location: vscode.ProgressLocation.Notification,
+		title: "Downloading PyOpenGL . Please wait.",
+		cancellable: false
+	}, (progress) => {
+		return new Promise((resolve, reject) => {
+			const command = 'pip install PyOpenGL --quiet --disable-pip-version-check';
+			const child = exec(command);
+			
+			let progressInterval = setInterval(() => {
+				progress.report({ message: 'Downloading...' });
+			}, 1000); // Update progress every second
+			
+			child.stdout.on('data', (data) => {
+				// You can add custom logic here if needed
+			});
+			
+			child.on('close', (code) => {
+				clearInterval(progressInterval);
+				if (code === 0) {
+					vscode.window.showInformationMessage('PyOpenGL downloaded and installed successfully.');
+					resolve();
+				} else {
+					reject(new Error('Failed to download PyOpenGL.'));
 				}
 			});
 			
@@ -172,6 +231,7 @@ class MyTreeDataProvider {
 			return [
 				new MyTreeItem('python extension', 'ksbanim.downloadPythonExtension'),
 				new MyTreeItem('PyQt5', 'ksbanim.downloadQt'),
+				new MyTreeItem('PyOpenGL', 'ksbanim.downloadOpenGL'),
 				new MyTreeItem('ksbanim.py', 'ksbanim.downloadFile'),
 			];
 		}

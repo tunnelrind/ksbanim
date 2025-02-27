@@ -1,8 +1,8 @@
 {
     "name": "ksbanim",
     "displayName": "ksbanim",
-    "description": "an extension to download the python extension, PyQt5 and ksbanim",
-    "version": "1.0.4",
+    "description": "an extension to neatly download ksbanim, the python extension and the required dependencies: OpenGL, PyQt5, imageio",
+    "version": "1.1.0",
     "publisher": "BiasiniDario",
     "author": {
       "name": "Biasini Dario"
@@ -25,6 +25,10 @@
         {
           "command": "ksbanim.downloadFile",
           "title": "ksbanim.py"
+        },
+        {
+          "command": "ksbanim.downloadOpenGL",
+          "title": "OpenGL"
         },
         {
           "command": "ksbanim.downloadQt",
