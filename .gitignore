@@ -7,3 +7,8 @@ test_code
 *.vsix
 __pychache__
 ksbanim_gltext.py
+upload.py
+dist/*
+ksbanim.egg-info/
+build/
+__pycache__/

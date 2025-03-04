@@ -7,8 +7,30 @@ import os
 import struct
 import copy 
 from abc import ABC, abstractmethod
+import pkg_resources, requests
+
+def check_for_updates():
+    package_name = 'ksbanim'
+    try:
+        current_version = pkg_resources.get_distribution(package_name).version
+        response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
+        response.raise_for_status()
+        latest_version = response.json()['info']['version']
+        
+        if current_version != latest_version:
+            print(f"A new version of {package_name} is available ({latest_version}). You have {current_version}.")
+            update = input("Would you like to update now? (enter yes/no): ").strip().lower()
+            if update == 'yes':
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
+                print(f"{package_name} has been updated to version {latest_version}. Please restart the application.")
+    except Exception as e:
+        print(f"An error occurred while checking for updates: {e}")
+
+# Call the function at the start of your script
+check_for_updates()
 
 # pdoc ksbanim --output-dir ./docs
+# twine upload --repository pypi dist/* -u __token__ -p <your-token>
 
 def _install(name, version="", options=""):
     print("x" * 100)
@@ -2233,58 +2255,6 @@ class kVector(kLine):
 
         return vertices
 
-class TextRenderer:
-    def __init__(self, font_name="Verdana", font_size=12):
-        self.font = QFont(font_name, font_size)
-        self.font_metrics = QFontMetrics(self.font)
-        self.glyph_textures = {}
-
-    def generate_glyph_texture(self, char):
-        if char in self.glyph_textures:
-            return self.glyph_textures[char]
-
-        # Create an image to render the glyph
-        image = QImage(self.font_metrics.width(char), self.font_metrics.height(), QImage.Format_ARGB32)
-        image.fill(Qt.transparent)
-
-        # Render the glyph to the image
-        painter = QPainter(image)
-        painter.setFont(self.font)
-        painter.setPen(Qt.white)
-        painter.drawText(0, self.font_metrics.ascent(), char)
-        painter.end()
-
-        # Convert the QImage to an OpenGL texture
-        texture_id = glGenTextures(1)
-        glBindTexture(GL_TEXTURE_2D, texture_id)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width(), image.height(), 0, GL_BGRA, GL_UNSIGNED_BYTE, image.bits())
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-
-        self.glyph_textures[char] = texture_id
-        return texture_id
-
-    def render_text(self, text, x, y):
-        glEnable(GL_TEXTURE_2D)
-        for char in text:
-            texture_id = self.generate_glyph_texture(char)
-            glBindTexture(GL_TEXTURE_2D, texture_id)
-
-            # Calculate the position and size of the glyph
-            width = self.font_metrics.width(char)
-            height = self.font_metrics.height()
-
-            # Render the glyph quad
-            glBegin(GL_QUADS)
-            glTexCoord2f(0, 0); glVertex2f(x, y)
-            glTexCoord2f(1, 0); glVertex2f(x + width, y)
-            glTexCoord2f(1, 1); glVertex2f(x + width, y + height)
-            glTexCoord2f(0, 1); glVertex2f(x, y + height)
-            glEnd()
-
-            x += width
-        glDisable(GL_TEXTURE_2D)
-
 class kUIElement:
     def __init__(self):
         width = 200
@@ -2616,7 +2586,7 @@ class kLabel(kUIElement):
 class kText(kLabel):
     def __init__(self, text, *args, shape=None):
         kstore.scaleAnim(0)
-        super().__init__("", "")
+        super().__init__("", text)
         self.name = "kText"
         kstore.unscaleAnim()
 
@@ -2626,15 +2596,6 @@ class kText(kLabel):
         self.initFill(False)
         self.initLine(False)
         self.initSize([self.size[0], 1000])
-
-        length = len(text)
-        if length == 0:
-            return 
-        
-        kstore.scaleAnim(1/length)
-        for i in range(1, length):
-            self.setText(text[:i+1])
-        kstore.unscaleAnim()
 
 class kButton(kLabel):
     def __init__(self, text, handler):
@@ -3154,7 +3115,10 @@ class kMainWindow(QOpenGLWidget):
         glPopAttrib()
         painter.endNativePainting()
         painter.resetTransform()
-        painter.scale(1/kstore.scale_factor, 1/kstore.scale_factor)
+
+        transform = QTransform()
+        transform.scale(1/kstore.scale_factor, 1/kstore.scale_factor)
+        painter.setTransform(transform)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.TextAntialiasing)
 
@@ -3514,8 +3478,6 @@ def _getSample(name):
     return the_list 
 
 # ==================================== PUBLIC INTERFACE ===========================================
-
-# pip install PyQt5
 
 __all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setAnimDelay', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage"]
 
@@ -4671,7 +4633,6 @@ def getListSample(name):
 # ==================================== TEST CODE ===========================================
 
 if __name__ == "__main__":
-    print(" > installation successful")
     print(" > create your own python script")
     print("""
     from ksbanim import *
