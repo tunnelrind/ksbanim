@@ -6,3 +6,4 @@ ksb_kivy.py
 test_code
 *.vsix
 __pychache__
+ksbanim_gltext.py
