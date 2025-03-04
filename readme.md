@@ -14,6 +14,7 @@ The python package **ksbanim** supports the drawing of primitive shapes and UI e
 
 A working installation of python3 and pip is necessary. So go and install python first.
 
+Based on OpenGL, PyQt5 and imageio
 
 ## Usage Example
 

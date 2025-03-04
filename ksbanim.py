@@ -256,20 +256,6 @@ class kShapeMatcher:
         self.setter(value)
         return 1
 
-    def process(self, the_time):
-        if the_time >= self.end_time:
-            value = self.interpolate(1)
-            self.setter(value)
-            return -1 
-        elif the_time < self.begin_time:
-            self.begin_value = self.getter()
-            return 0
-        
-        fraction = (the_time - self.begin_time) / self.dt
-        value = self.interpolate(fraction)
-        self.setter(value)
-        return 1
-
 class kLoop:
     def __init__(self, loop_function, milliseconds):
         self.immediate = kstore.immediate
@@ -282,7 +268,10 @@ class kLoop:
 
     def process(self, the_time):
         if self.begin_time <= the_time:
-            self.begin_time = the_time - the_time%self.milliseconds + self.milliseconds
+            if self.milliseconds == 0:
+                self.begin_time = the_time 
+            else:
+                self.begin_time = the_time - the_time%self.milliseconds + self.milliseconds
             old_milliseconds = kstore.milliseconds
             kstore.milliseconds = self.begin_time
             self.loop_function()
@@ -834,8 +823,8 @@ class kStore:
         self.timer = None 
         self.dt = round(1000/60)
         self.milliseconds = 0
-        self.delay = 50
-        self.animation = 500
+        self.delay = 250
+        self.animation = 250
         self.anim_stack = []
         self.line = False 
         self.lineColor = [200,150,30, 255]
@@ -857,20 +846,22 @@ class kStore:
     def setPos(self, *point):
         new_pos = toFloatList(point)
         old_pos = copy.deepcopy(self.pos)
+        line = None
         if self.pendown:
-            old_rot = kstore.rot 
-            kstore.rot = 0
-            line = drawLine(new_pos[0] - old_pos[0], new_pos[1] - old_pos[1])
-            kstore.rot = old_rot
-            self.pos = toFloatList(point)
-            kstore.milliseconds -= kstore.delay
+            length = ((new_pos[0] - old_pos[0])**2 + (new_pos[1] - old_pos[1])**2)**0.5
+            temp = kstore.milliseconds
+            line = drawLine(length)
+            self.pos = new_pos
+            kstore.milliseconds = temp
             self.cursor.setPos(self.pos)
+            kstore.milliseconds = temp + max(kstore.animation, kstore.delay)
         else:
             self.pos = toFloatList(point)
             self.scaleAnim(0)
             self.cursor.setPos(self.pos)
             self.unscaleAnim()
-
+        return line 
+        
     def getPos(self):
         return self.pos.copy()
 
@@ -890,6 +881,7 @@ class kStore:
         self.rot = angle
         if self.pendown:
             self.cursor.setRot(angle)
+            kstore.milliseconds += max(kstore.delay, kstore.animation) - kstore.delay
         else:
             self.scaleAnim(0)
             self.cursor.setRot(angle)
@@ -1023,7 +1015,7 @@ class kShape(ABC):
             pivot_x = self.pivot[0] + shape.pivot[0]
             pivot_y = self.pivot[1] + shape.pivot[1]
             self.initPivot([pivot_x, pivot_y])
-
+        
         kstore.scaleAnim(0)
         self.show()
         kstore.unscaleAnim()
@@ -1249,7 +1241,7 @@ class kShape(ABC):
     def setVertices(self, vertices):
         self.vertices = vertices 
         action_queue.add(kShapeMatcher(vertices, self._getVertices, self._setVertices))
-    
+        
     def toRect(self, *size):
         kstore.scaleAnim(0)
         new_shape = kRect(*size, shape=self)
@@ -1257,7 +1249,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
     def toCircle(self, radius):
@@ -1267,7 +1258,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
     def toEllipse(self, *size):
@@ -1277,7 +1267,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
     def toRoundedRect(self, width, height, radius):
@@ -1287,7 +1276,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
     def toTriangle(self, length):
@@ -1297,7 +1285,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
     def toArc(self, radius, angle):
@@ -1307,7 +1294,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
     def toLine(self, *size):
@@ -1317,7 +1303,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
     def toVector(self, *size):
@@ -1329,7 +1314,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
     def toPolygon(self, vertices):
@@ -1339,7 +1323,6 @@ class kShape(ABC):
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
-        kstore.milliseconds += max(kstore.animation - kstore.delay, 0)
         return new_shape 
 
 class kEllipse(kShape):
@@ -1511,11 +1494,7 @@ class kRoundedRect(kShape):
 
         if shape is None:
             self.initSize([1,1])
-            self.initRadius(2)
-            kstore.scaleAnim(0.5)
-            self.setCircle(radius)
             self.setSize([width, height])
-            kstore.unscaleAnim()
 
     def getWidth(self): pass
     def setWidth(self, width): pass
@@ -1550,13 +1529,14 @@ class kRoundedRect(kShape):
     
     def _generateVertices(self):
         vertices = []
-        num_segments = 20
+        num_segments = 16
 
+        radius = min(self._size[0]/2, self._size[1]/2, self._radius)
         corners = [
-            (self._radius, self._radius), 
-            (self._size[0] - self._radius, self._radius),
-            (self._size[0] - self._radius, self._size[1] - self._radius), 
-            (self._radius, self._size[1] - self._radius)
+            (radius, radius), 
+            (self._size[0] - radius, radius),
+            (self._size[0] - radius, self._size[1] - radius), 
+            (radius, self._size[1] - radius)
         ]
 
         angles = [
@@ -1571,18 +1551,18 @@ class kRoundedRect(kShape):
             start_angle, end_angle = angles[i]
             for j in range(num_segments + 1):
                 theta = start_angle + (end_angle - start_angle) * j / num_segments
-                x = cx + self._radius * math.cos(theta)
-                y = cy + self._radius * math.sin(theta)
+                x = cx + radius * math.cos(theta)
+                y = cy + radius * math.sin(theta)
                 vertices.append([x, y])
 
             if i == 0:
-                vertices.append([self._size[0] - self._radius, 0])
+                vertices.append([self._size[0] - radius, 0])
             elif i == 1:
-                vertices.append([self._size[0], self._size[1] - self._radius])
+                vertices.append([self._size[0], self._size[1] - radius])
             elif i == 2:
-                vertices.append([self._radius, self._size[1]])
+                vertices.append([radius, self._size[1]])
             elif i == 3:
-                vertices.append([0, self._radius])
+                vertices.append([0, radius])
         
         for vertex in vertices:
             vertex[0] -= self._size[0]/2
@@ -2256,7 +2236,7 @@ class kVector(kLine):
         return vertices
 
 class kUIElement:
-    def __init__(self):
+    def __init__(self, scale):
         width = 200
         height = 50
         radius = 5
@@ -2266,7 +2246,6 @@ class kUIElement:
         kShape.counter += 1
 
         self._pixmap = None 
-
 
         self.getReady, self.setReady = kValue(self, "ready", False)
         self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", [width, height])
@@ -2308,12 +2287,14 @@ class kUIElement:
 
         ui_buffer.append(self)
 
-        self.initSize([1,1])
         self.setReady(True)
-        kstore.scaleAnim(0.5)
-        self.setWidth(width)
-        self.setHeight(height)
-        kstore.unscaleAnim()
+        if scale:
+            self.initSize([1,1])
+
+            kstore.scaleAnim(0.5)
+            self.setWidth(width)
+            self.setHeight(height)
+            kstore.unscaleAnim()
     
     def getWidth(self): pass
     def setWidth(self, width): pass
@@ -2332,8 +2313,8 @@ class kUIElement:
 
     def _updateShape(self): 
         the_max = max(abs(self._size[0]), abs(self._size[1]))
-        the_max = int(1.41 * the_max)
-        self._pixmap = QPixmap(2 * the_max, 2 * the_max)
+        the_max = int(the_max)
+        self._pixmap = QPixmap(2*the_max, 2*the_max)
         self._pixmap.fill(Qt.transparent)
 
         if not self._ready:
@@ -2344,7 +2325,8 @@ class kUIElement:
 
         painter = QPainter(self._pixmap)
         painter.setRenderHint(QPainter.Antialiasing)
-        
+        painter.setRenderHint(QPainter.TextAntialiasing)
+
         if self._fill:
             painter.setBrush(QBrush(QColor(*self._fillColor), Qt.SolidPattern))
         else:
@@ -2359,12 +2341,11 @@ class kUIElement:
         transform.translate(the_max, the_max)
         transform.rotate(-self._rot)
         transform.translate(-the_max, -the_max)
-
         painter.setTransform(transform)
         painter.drawRoundedRect(
             QRectF(
-                the_max - self._size[0] / 2.0,
-                the_max + self._size[1] / 2.0,
+                the_max - self._size[0]/2,
+                the_max - self._size[1]/2,
                 self._size[0],
                 self._size[1]
             ),
@@ -2380,8 +2361,8 @@ class kUIElement:
         x, y = toFloatList(point)
         
         # Translate the point to the local coordinate system
-        local_x = x - self._pos[0] + self._size[0]/2
-        local_y = y - self._pos[1] + self._size[1]/2
+        local_x = x - self._pos[0]
+        local_y = y - self._pos[1]
 
         # Convert rotation angle to radians
         angle = math.radians(-self._rot)
@@ -2389,12 +2370,12 @@ class kUIElement:
         sin_theta = math.sin(angle)
 
         # Translate the point relative to the pivot
-        translated_x = local_x
+        translated_x = local_x 
         translated_y = local_y
 
         # Rotate the point around the pivot
-        rotated_x = translated_x * cos_theta - translated_y * sin_theta + self._pivot[0]
-        rotated_y = translated_x * sin_theta + translated_y * cos_theta + self._pivot[1]
+        rotated_x = translated_x * cos_theta - translated_y * sin_theta + self._pivot[0] + self._size[0]/2
+        rotated_y = translated_x * sin_theta + translated_y * cos_theta + self._pivot[1] + self._size[1]/2
 
         # Check if the point is within the shape's bounding box
         if (self._radius <= rotated_x <= self._size[0] - self._radius) and (0 <= rotated_y <= self._size[1]):
@@ -2417,8 +2398,8 @@ class kUIElement:
         return False
     
 class kLabel(kUIElement):
-    def __init__(self, label="", text=""):
-        super().__init__()
+    def __init__(self, label="", text="", scale=True):
+        super().__init__(scale)
         self.name = "kLabel"
 
         self.getLabel, self.setLabel = kValue(self, "label", "")
@@ -2464,7 +2445,7 @@ class kLabel(kUIElement):
     
     def _drawText(self):
         the_max = max(self._size[0], self._size[1])
-        the_max = int(1.42 * the_max)
+        the_max = int(the_max)
 
         painter = QPainter(self._pixmap)
         painter.setPen(QColor(*[int(c) for c in self._fontColor]))
@@ -2475,6 +2456,7 @@ class kLabel(kUIElement):
         transform.translate(the_max, the_max)
         transform.rotate(-self._rot)
         transform.translate(-the_max, -the_max)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
         painter.setTransform(transform)
 
         font = QFont()
@@ -2484,7 +2466,7 @@ class kLabel(kUIElement):
         painter.setFont(font)
         self._font_metrics = QFontMetrics(font)
         
-        text_rect = QRect(the_max+int(self._padding - self._size[0]/2), the_max+int(self._padding + self._size[1]/2), int(self._size[0])-2*int(self._padding), int(self._size[1])-2*int(self._padding))
+        text_rect = QRect(the_max+int(self._padding - self._size[0]/2), the_max+int(self._padding - self._size[1]/2), int(self._size[0])-2*int(self._padding), int(self._size[1])-2*int(self._padding))
 
         # Determine horizontal alignment
         if self._alignX == "left":
@@ -2547,7 +2529,7 @@ class kLabel(kUIElement):
             return 
         
         the_max = max(self._size[0], self._size[1])
-        the_max = int(1.41 * the_max)
+        the_max = int(the_max)
         
         painter = QPainter(self._pixmap)
         painter.setPen(QColor(*[int(c) for c in self._fontColor]))
@@ -2556,6 +2538,7 @@ class kLabel(kUIElement):
         transform.translate(the_max, the_max)
         transform.rotate(-self._rot)
         transform.translate(-the_max, -the_max)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
         painter.setTransform(transform)
 
         font = QFont()
@@ -2565,6 +2548,8 @@ class kLabel(kUIElement):
         font_metrics = QFontMetrics(font)
 
         painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
+
         painter.setPen(QColor(*self._lineColor))
         painter.setBrush(QColor(*self._passiveColor))
 
@@ -2574,8 +2559,8 @@ class kLabel(kUIElement):
         width = font_metrics.width(the_label)
         height = font_metrics.height()
 
-        x = 1.41*the_max + self._radius + 2 * self._padding - self._size[0]/2
-        y = 1.41*the_max - height/2 + self._size[1]/2
+        x = the_max + self._radius + self._padding - self._size[0]/2
+        y = the_max - height/2 - self._size[1]/2
         
         rect = QRect(int(x), int(y), int(width), int(height))
         
@@ -2586,16 +2571,16 @@ class kLabel(kUIElement):
 class kText(kLabel):
     def __init__(self, text, *args, shape=None):
         kstore.scaleAnim(0)
-        super().__init__("", text)
+        super().__init__("", text, False)
         self.name = "kText"
         kstore.unscaleAnim()
 
         self.initAlignX("center")
+        self.initAlignY("center")
         self.initOverflow("visible")
-        self.initAlignY("top")
         self.initFill(False)
         self.initLine(False)
-        self.initSize([self.size[0], 1000])
+        self.initSize([1000, 1000])
 
 class kButton(kLabel):
     def __init__(self, text, handler):
@@ -2793,7 +2778,7 @@ class kInput(kLabel):
     def _draw_cursor(self):
         if self._cursor_visible:
             the_max = max(self._size[0], self._size[1])
-            the_max = int(1.41 * the_max)
+            the_max = int(the_max)
 
             painter = QPainter(self._pixmap)
             painter.setPen(QColor(*[int(c) for c in self._fontColor]))
@@ -2818,8 +2803,8 @@ class kInput(kLabel):
                 cursor_x, cursor_y = self._getCursorXY(lines, font_metrics)
             
             painter.setPen(QColor(*[int(c) for c in self._fontColor]))
-            cursor_x += the_max + 2
-            cursor_y = cursor_y + the_max
+            cursor_x += the_max + 2-self._size[0]/2
+            cursor_y = cursor_y + the_max - self._size[1]/2
             painter.drawLine(int(cursor_x), int(cursor_y), int(cursor_x), int(cursor_y + font_metrics.height()))
             painter.end()
 
@@ -2975,7 +2960,7 @@ class kMainWindow(QOpenGLWidget):
         self.fps_label = QLabel(self)
         self.fps_label.setStyleSheet("color: white; background-color: black; font-size: 16px;")
         self.fps_label.resize(100, 30)
-        self.fps_label.setText("   ")
+        self.fps_label.setText("fps --")
         self.fps_label.show()
 
     def updateFps(self):
@@ -3114,10 +3099,11 @@ class kMainWindow(QOpenGLWidget):
         glPopMatrix()
         glPopAttrib()
         painter.endNativePainting()
-        painter.resetTransform()
 
+        painter.resetTransform()
         transform = QTransform()
         transform.scale(1/kstore.scale_factor, 1/kstore.scale_factor)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
         painter.setTransform(transform)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.TextAntialiasing)
@@ -3128,7 +3114,7 @@ class kMainWindow(QOpenGLWidget):
             if ui_element._ready:
                 painter.drawPixmap(
                     int(ui_element._pos[0] - ui_element._pixmap.width() // 2),
-                    int(kstore.size[1] - ui_element._pos[1] - ui_element._pixmap.height() / 2 - ui_element._size[1]),
+                    int(kstore.size[1] - ui_element._pos[1] - ui_element._pixmap.height() / 2),
                     ui_element._pixmap.scaled(ui_element._pixmap.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 )
         painter.resetTransform()
@@ -3479,7 +3465,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setAnimDelay', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage"]
+__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setAnimAndDelay', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -3743,19 +3729,19 @@ def drawPoly(points):
 
 def setAnim(milliseconds):
     """
-        define how long a drawing animation takes in milliseconds
+        define how long a drawing animation takes in milliseconds (default 250 ms)
     """
     kstore.animation = milliseconds
 
 def setDelay(milliseconds):
     """
-        define how the delay between each drawing animation should take in milliseconds
+        define how the delay between each drawing animation should take in milliseconds (default 250 ms)
     """
     kstore.delay = milliseconds
 
-def setAnimDelay(milliseconds):
+def setAnimAndDelay(milliseconds):
     """
-        define how the delay and animation time for each drawing animation should take in milliseconds
+        define how the delay and animation time for each drawing animation should take in milliseconds (default 250 ms animation and 250 ms delay)
 
         shorthand for setAnim(milliseconds) and setDelay(milliseconds)
     """
@@ -4115,12 +4101,13 @@ def getFps(fps):
 
     return 1000/kstore.dt
 
-def onTick(tick_function, milliseconds=0):
+def onTick(tick_function, milliseconds=20):
     """
-        executes tick_function once every milliseconds
+        executes tick_function at a regular interval (milliseconds)
 
-        - if milliseconds is 0, the tick_function is executed every frame
+        - milliseconds must be at least 20
         - if the drawing operation can't keep up, the real tick might be larger
+        - it is recommended to disable animations with setAnimAndDelay(0)
 
         **example**
 
@@ -4128,12 +4115,13 @@ def onTick(tick_function, milliseconds=0):
             move(100,100)
             drawCircle(5)
 
+        setAnimAndDelay(0)
         onTick(loop, 100) *# draws one circle every 100 ms*
     """
 
     kstore.immediate = True
     kstore.scaleAnim(0)
-    action_queue.add(kLoop(tick_function, milliseconds))
+    action_queue.add(kLoop(tick_function, max(20, milliseconds)))
     kstore.unscaleAnim()
     kstore.immediate = False
     
@@ -4406,7 +4394,7 @@ def drawLabel(name, text):
 
         **example**
 
-        drawLabel("name, surname", "Johnny\\n Cash")
+        drawLabel("name", "Johnny\\nCash")
     """
     label = kLabel(str(name), str(text))
     label._updateShape()
