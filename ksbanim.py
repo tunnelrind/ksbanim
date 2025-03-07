@@ -279,7 +279,24 @@ class kLoop:
             return 1
         else:
             return 0
-        
+
+class kMessage:
+    def __init__(self, message):
+        self.message = message
+
+        self.immediate = kstore.immediate
+        if self.immediate:
+            self.begin_time = kstore.elapsed_timer.elapsed()
+        else:
+            self.begin_time = kstore.milliseconds
+            
+    def process(self, the_time):
+        if self.begin_time <= the_time:
+            print(self.message)
+            return -1
+        else:
+            return 0
+
 class kAction:
     def __init__(self, action_function):
         self.immediate = kstore.immediate
@@ -334,8 +351,147 @@ class kActionQueue:
                 i = i + 1
 
 action_queue = kActionQueue()
-
 # ==================================== HELPER CLASSES ===========================================
+
+class kStore:
+    def __init__(self):
+        self.app = None 
+        self.pixmap = None 
+        self.size = [1000, 1000]
+        self.scale_factor = 1
+        self.pos = [500,500]
+        self.rot = 0
+        self.timer = None 
+        self.dt = round(1000/60)
+        self.milliseconds = 0
+        self.delay = 250
+        self.animation = 250
+        self.anim_stack = []
+        self.line = False 
+        self.lineColor = [200,150,30, 255]
+        self.lineWidth = 2
+        self.fill = True
+        self.fillColor = [255,200,50, 255]
+        self.show_grid = True 
+        self.cursor = None 
+        self.draw_cursor = True 
+        self.fontSize = 12 
+        self.fontColor = [255,255,255, 255]
+        self.backgroundColor = [0,0,0,255]
+        self.window = None 
+        self.grid = None 
+        self.immediate = False
+        self.pendown = False 
+        self.color_mixing = "subtractive"
+
+    def setPos(self, *point):
+        new_pos = toFloatList(point)
+        old_pos = copy.deepcopy(self.pos)
+        line = None
+        if self.pendown:
+            length = ((new_pos[0] - old_pos[0])**2 + (new_pos[1] - old_pos[1])**2)**0.5
+            temp = kstore.milliseconds
+            line = drawLine(length)
+            self.pos = new_pos
+            kstore.milliseconds = temp
+            self.cursor.setPos(self.pos)
+            kstore.milliseconds = temp + max(kstore.animation, kstore.delay)
+        else:
+            self.pos = toFloatList(point)
+            self.scaleAnim(0)
+            self.cursor.setPos(self.pos)
+            self.unscaleAnim()
+        return line 
+        
+    def getPos(self):
+        return self.pos.copy()
+
+    def setX(self, x):
+        self.setPos(x, self.pos[1])
+    
+    def getX(self):
+        return self.pos[0]
+    
+    def setY(self, y):
+        self.setPos(self.pos[0], y)
+    
+    def getY(self):
+        return self.pos[1]
+    
+    def setRot(self, angle):
+        self.rot = angle
+        if self.pendown:
+            self.cursor.setRot(angle)
+            kstore.milliseconds += max(kstore.delay, kstore.animation) - kstore.delay
+        else:
+            self.scaleAnim(0)
+            self.cursor.setRot(angle)
+            self.unscaleAnim()
+
+    def getRot(self):
+        return self.rot
+
+    def getColor(self):
+        return self.fillColor
+    
+    def setColor(self, *rgba):
+        color = toColor(rgba)
+        self.lineColor = color
+        self.fillColor = color
+        self.scaleAnim(0)
+        self.cursor.setColor(color)
+        self.unscaleAnim()
+
+    def getFillColor(self):
+        return self.fillColor
+    
+    def setFillColor(self, *rgba):
+        color = toColor(rgba)
+        self.fillColor = color
+        self.scaleAnim(0)
+        self.cursor.setFillColor(color)
+        self.unscaleAnim()
+
+    def getFontColor(self):
+        return self.fontColor
+    
+    def setFontColor(self, *rgba):
+        self.fontColor = toColor(rgba)
+
+    def getLineColor(self):
+        return self.lineColor
+    
+    def setLineColor(self, *rgba):
+        color = toColor(rgba)
+        self.lineColor = color
+        self.scaleAnim(0)
+        self.cursor.setLineColor(color)
+        self.unscaleAnim()
+
+    def getFontSize(self):
+        return self.fontSize
+    
+    def setFontsize(self, size):
+        self.fontSize = int(size)
+
+    def scaleAnim(self, factor):
+        self.anim_stack.append([self.animation, self.delay])
+        self.animation = int(self.animation*factor)
+        self.delay = int(self.delay*factor)
+
+    def unscaleAnim(self):
+        if len(self.anim_stack) == 0:
+            return 
+
+        latest = self.anim_stack.pop()
+
+        self.animation = latest[0]
+        self.delay = latest[1]
+
+    def setPen(self, value):
+        self.pendown = value 
+
+kstore = kStore()
 
 def printErrorGL(message = ""):
     err = glGetError()
@@ -702,6 +858,36 @@ def kColor(instance, name, *args, update=True):
     # return (public_getter, public_setter, public_getter_r, public_setter_r, public_getter_g, public_setter_g, public_getter_b, public_setter_b, public_getter_a, public_setter_a)
     return (public_getter, public_setter)
 
+import colorsys
+
+class kRainbow:
+    def __init__(self, pieces):
+        self.pieces = pieces
+        self.i = 0
+        self.brightness = 255
+        self.saturation = 255
+    
+    def getBrighness(self):
+        return self.brightness 
+
+    def setBrightness(self, brightness):
+        self.brightness = brightness
+
+    def getSaturation(self):
+        return self.saturation
+
+    def setSaturation(self, saturation):
+        self.saturation = saturation 
+    
+    def next(self):
+        hue = (self.i / self.pieces) % 1.0
+        rgb = colorsys.hsv_to_rgb(hue, min(self.saturation/255, 255), min(self.brightness/255, 255))
+        self.i += 1
+        return tuple(int(c * 255) for c in rgb)
+    
+    def reset(self):
+        self.i = 0
+    
 def replaceLatex(text):
     latex_to_unicode = {
         r'\\alpha': 'α',
@@ -789,8 +975,12 @@ def replaceLatex(text):
 def toFloatList(args):
     cast = float 
     if len(args) == 1 and isinstance(args[0], (list, tuple)):
+        if not len(args[0]) == 2:
+            raise ValueError("expected x and y, but got only x")
         return list([cast(a) for a in args[0]])
     else:
+        if not len(args) == 2:
+            raise ValueError("expected x and y, but got only x")
         return list([cast(a) for a in args])
     
 def toColor(args):
@@ -811,146 +1001,6 @@ def toColor(args):
         raise ValueError("color must have 3 (rgb) or 4 (rgba) arguments" + str(args))
 
     return [int(r),int(g),int(b),int(a)]
-
-class kStore:
-    def __init__(self):
-        self.app = None 
-        self.pixmap = None 
-        self.size = [1000, 1000]
-        self.scale_factor = 1
-        self.pos = [500,500]
-        self.rot = 0
-        self.timer = None 
-        self.dt = round(1000/60)
-        self.milliseconds = 0
-        self.delay = 250
-        self.animation = 250
-        self.anim_stack = []
-        self.line = False 
-        self.lineColor = [200,150,30, 255]
-        self.lineWidth = 2
-        self.fill = True
-        self.fillColor = [255,200,50, 255]
-        self.show_grid = True 
-        self.cursor = None 
-        self.draw_cursor = True 
-        self.fontSize = 12 
-        self.fontColor = [255,255,255, 255]
-        self.backgroundColor = [0,0,0,255]
-        self.window = None 
-        self.grid = None 
-        self.immediate = False
-        self.pendown = False 
-        self.color_mixing = "subtractive"
-
-    def setPos(self, *point):
-        new_pos = toFloatList(point)
-        old_pos = copy.deepcopy(self.pos)
-        line = None
-        if self.pendown:
-            length = ((new_pos[0] - old_pos[0])**2 + (new_pos[1] - old_pos[1])**2)**0.5
-            temp = kstore.milliseconds
-            line = drawLine(length)
-            self.pos = new_pos
-            kstore.milliseconds = temp
-            self.cursor.setPos(self.pos)
-            kstore.milliseconds = temp + max(kstore.animation, kstore.delay)
-        else:
-            self.pos = toFloatList(point)
-            self.scaleAnim(0)
-            self.cursor.setPos(self.pos)
-            self.unscaleAnim()
-        return line 
-        
-    def getPos(self):
-        return self.pos.copy()
-
-    def setX(self, x):
-        self.setPos(x, self.pos[1])
-    
-    def getX(self):
-        return self.pos[0]
-    
-    def setY(self, y):
-        self.setPos(self.pos[0], y)
-    
-    def getY(self):
-        return self.pos[1]
-    
-    def setRot(self, angle):
-        self.rot = angle
-        if self.pendown:
-            self.cursor.setRot(angle)
-            kstore.milliseconds += max(kstore.delay, kstore.animation) - kstore.delay
-        else:
-            self.scaleAnim(0)
-            self.cursor.setRot(angle)
-            self.unscaleAnim()
-
-    def getRot(self):
-        return self.rot
-
-    def getColor(self):
-        return self.fillColor
-    
-    def setColor(self, *rgba):
-        color = toColor(rgba)
-        self.lineColor = color
-        self.fillColor = color
-        self.scaleAnim(0)
-        self.cursor.setColor(color)
-        self.unscaleAnim()
-
-    def getFillColor(self):
-        return self.fillColor
-    
-    def setFillColor(self, *rgba):
-        color = toColor(rgba)
-        self.fillColor = color
-        self.scaleAnim(0)
-        self.cursor.setFillColor(color)
-        self.unscaleAnim()
-
-    def getFontColor(self):
-        return self.fontColor
-    
-    def setFontColor(self, *rgba):
-        self.fontColor = toColor(rgba)
-
-    def getLineColor(self):
-        return self.lineColor
-    
-    def setLineColor(self, *rgba):
-        color = toColor(rgba)
-        self.lineColor = color
-        self.scaleAnim(0)
-        self.cursor.setLineColor(color)
-        self.unscaleAnim()
-
-    def getFontSize(self):
-        return self.fontSize
-    
-    def setFontsize(self, size):
-        self.fontSize = int(size)
-
-    def scaleAnim(self, factor):
-        self.anim_stack.append([self.animation, self.delay])
-        self.animation = int(self.animation*factor)
-        self.delay = int(self.delay*factor)
-
-    def unscaleAnim(self):
-        if len(self.anim_stack) == 0:
-            return 
-
-        latest = self.anim_stack.pop()
-
-        self.animation = latest[0]
-        self.delay = latest[1]
-
-    def setPen(self, value):
-        self.pendown = value 
-
-kstore = kStore()
 
 # ==================================== SHAPES ===========================================
 
@@ -1353,8 +1403,16 @@ class kEllipse(kShape):
 
         return the_copy
 
+    def _calculateNumSegments(self, a, b):
+        h = ((a - b) ** 2) / ((a + b) ** 2)
+        circumference = math.pi * (a + b) * (1 + (3 * h) / (10 + math.sqrt(4 - 3 * h)))
+
+        num_segments = min(100, max(12, int(circumference / 5)))
+        
+        return num_segments
+
     def _generateVertices(self):
-        num_segments = 100
+        num_segments = self._calculateNumSegments(*self._size)
         vertices = []
         for i in range(num_segments + 1):
             theta = 2.0 * math.pi * i / num_segments  # Angle in radians
@@ -1365,7 +1423,7 @@ class kEllipse(kShape):
         return vertices
 
     def generateVertices(self):
-        num_segments = 100
+        num_segments = self._calculateNumSegments(*self.size)
         vertices = []
         for i in range(num_segments + 1):
             theta = 2.0 * math.pi * i / num_segments  # Angle in radians
@@ -3373,10 +3431,10 @@ def _getSample(name):
                     the_list.append([r,g,b])
     elif name == "colors2":
         the_list = []
-        for x in range(0,800, 1):
+        for x in range(0,kstore.size[0], 1):
             x = math.exp(-x/300)*255
-            y = math.sin(x*30/800)*math.exp(-x/300)*255
-            z = math.cos(x*30/800)*math.exp(-x/300)*255
+            y = math.sin(x*30/kstore.size[0])*math.exp(-x/300)*255
+            z = math.cos(x*30/kstore.size[0])*math.exp(-x/300)*255
             the_list.append([x,y,z])
     elif name == "colorpalette1":
         the_list = [
@@ -3393,19 +3451,19 @@ def _getSample(name):
         ]
     elif name == "coords1":
         the_list = []
-        for x in range(0,800, 1):
-            y = math.sin(x*30/800)*math.exp(-x/300)*400 + 400
+        for x in range(0,kstore.size[0], 1):
+            y = math.sin(x*30/kstore.size[0])*math.exp(-x/300)*kstore.size[0]//2 + kstore.size[0]//2
             the_list.append([x,y])
     elif name == "coords2":
         the_list = []
         for i in range(10):
-            x = random.randint(0,800)
-            y = random.randint(0,800)
+            x = random.randint(0,kstore.size[0])
+            y = random.randint(0,kstore.size[1])
             the_list.append([x,y])
     elif name == "coords3":
         the_list = []
-        for x in range(0,800, 1):
-            y = math.sin(x*20/800)*300 - x/2 + 100*(random.random()-0.5) + 600
+        for x in range(0,kstore.size[0], 1):
+            y = math.sin(x*20/kstore.size[1])*300 - x/2 + 100*(random.random()-0.5) + kstore.size[1]//2-100
             the_list.append([x,y])
     elif name == "coords4":
         the_list = []
@@ -3416,9 +3474,9 @@ def _getSample(name):
             the_list.append([x,y])
     elif name == "circles1":
         the_list = []
-        for r in range(0,400):
+        for r in range(0,kstore.size[1]//2):
             h = r%50*5
-            the_list.append([400-r,h])
+            the_list.append([kstore.size[0]//2-r,h])
     elif name == "strings1":
         the_list = ["Alice", "Bob", "Charlie", "Danita", "Erich", "Frederica", "Gian", "Hanna", "Ibn", "Jasmin", "Kevin", "Lisa", "Manuel", "Nora", "Oskar", "Petra", "Qasim", "Rihanna", "Sandro", "Theres", "Ulrich", "Vivienne", "Walter", "Xenia", "Yannes", "Zora"]
     elif name == "int1":
@@ -3465,7 +3523,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setAnimAndDelay', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage"]
+__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -3486,6 +3544,8 @@ def createWindow(width=1000, height=1000):
 
     kstore.window.show()
     initWindowSize()
+
+    action_queue.add(kMessage(" > begin drawing"))
 
     kstore.main_timer = QTimer()
     kstore.main_timer.timeout.connect(lambda: action_queue.process())
@@ -3597,6 +3657,7 @@ def run():
     """
         needs to be the last function call of your script
     """
+    action_queue.add(kMessage(" > end drawing"))
     kstore.elapsed_timer.start()
     sys.exit(kstore.app.exec_())
 
@@ -3650,25 +3711,43 @@ def drawImage(file_name, width):
     image._draw()
     return image
 
-def drawLine(length):
+def drawLine(*size):
     """
-        draws a line with a given length
+        draws a line of a certain size (width, height) or with a given length
 
-        **example**
-        - setRot(45)
-        - drawLine(100)
+        **Examples**
+        - Draw a line of length 100 with angle 45:
+        
+            setRot(45)
+            drawLine(100) 
+
+        - Draw a line with x-distance 100 and y-distance 300:
+        
+            drawLine(100, 300)
     """
-    line = kLine(length, 0)
+    if not isinstance(size[0], (list,tuple)) and len(size) == 1:
+        size = [size[0], 0]
+
+    size = toFloatList(size)
+    line = kLine(size)
     line._updateShape()
     line._draw()
     return line
 
+
 def drawVector(length):
     """
-        draws a vector (arrow) with a given length
+        draws a vector (with arrowhead) of a certain size (width, height) or with a given length
 
-        **example**
-        - drawVector(100,400)
+        **Examples**
+        - Draw a line of length 100 with angle 45:
+        
+            setRot(45)
+            drawLine(100) 
+
+        - Draw a line with x-distance 100 and y-distance 300:
+        
+            drawLine(100, 300)
     """
     vector = kVector(length, 0)
     vector._updateShape()
@@ -3680,6 +3759,7 @@ def drawTriangle(length):
         draws an equilateral triangle with a given side length
 
         **example**
+
         - drawTriangle(100)
     """
     triangle = kTriangle(length)
@@ -3739,11 +3819,15 @@ def setDelay(milliseconds):
     """
     kstore.delay = milliseconds
 
-def setAnimAndDelay(milliseconds):
+def setTime(milliseconds):
     """
         define how the delay and animation time for each drawing animation should take in milliseconds (default 250 ms animation and 250 ms delay)
 
         shorthand for setAnim(milliseconds) and setDelay(milliseconds)
+
+        **example**
+
+        - setTime(10)
     """
     setAnim(milliseconds)
     setDelay(milliseconds)
@@ -3976,6 +4060,21 @@ def getColor():
     """
     return kstore.getColor()
 
+def getRainbow(pieces):
+    """
+        returns a rainbow object, made of a certain amount of pieces
+
+        the next rainbow color can be retrieved by next()
+
+        **example**
+
+        rainbow = getRainbow(255)
+        
+        setColor(rainbow.next())
+    """
+    rainbow = kRainbow(pieces)
+    return rainbow 
+
 def setFillColor(*rgba):
     """
         set the current fill color rgba
@@ -4069,7 +4168,7 @@ def getLineWidth():
     """
     return kstore.lineWidth 
 
-def setTick(milliseconds):
+def setFrameTick(milliseconds):
     """
         set the main timer tick in milliseconds (time between two frames)
 
@@ -4092,7 +4191,7 @@ def setFps(fps):
 
         if the drawing operation can't keep up, the real tick (time between two frames) might be larger
     """
-    setTick(1000/fps)
+    setFrameTick(1000/fps)
 
 def getFps(fps):
     """
@@ -4107,16 +4206,16 @@ def onTick(tick_function, milliseconds=20):
 
         - milliseconds must be at least 20
         - if the drawing operation can't keep up, the real tick might be larger
-        - it is recommended to disable animations with setAnimAndDelay(0)
+        - it is recommended to disable animations with setTime(0)
 
         **example**
 
         def loop():
-            move(100,100)
+            move(1,1)
             drawCircle(5)
 
-        setAnimAndDelay(0)
-        onTick(loop, 100) *# draws one circle every 100 ms*
+        setTime(0)
+        onTick(loop, 10) *# draws one circle every 100 ms*
     """
 
     kstore.immediate = True
@@ -4409,7 +4508,7 @@ def drawText(text):
 
         drawText("hello world")
     """
-    text = kText(text)
+    text = kText(str(text))
     text._updateShape()
     text._draw()
     return text 
