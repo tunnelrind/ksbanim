@@ -2,12 +2,15 @@ from setuptools import setup
 
 setup(
     name='ksbanim',
-    version='1.0.9',
+    version='1.0.10',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',
         'PyOpenGL',
-        'imageio[ffmpeg]'
+        'imageio[ffmpeg]',
+        'requests',
+        'triangle',
+        'shapely'
     ],
     author='Your Name',
     author_email='your.email@example.com',

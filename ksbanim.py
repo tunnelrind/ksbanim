@@ -8,6 +8,9 @@ import struct
 import copy 
 from abc import ABC, abstractmethod
 import pkg_resources, requests
+from shapely.geometry import Polygon
+import triangle as tr
+import colorsys
 
 def check_for_updates():
     package_name = 'ksbanim'
@@ -26,52 +29,18 @@ def check_for_updates():
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
 
-# Call the function at the start of your script
 check_for_updates()
 
-# pdoc ksbanim --output-dir ./docs
-# twine upload --repository pypi dist/* -u __token__ -p <your-token>
 
-def _install(name, version="", options=""):
-    print("x" * 100)
-    print(f"One-time installation of {name}")
-    print("The installation can take some time. Please keep the program running.")
-    print("x" * 100)
-
-    try:
-        options_list = options.split()
-        subprocess.check_call([sys.executable, '-m', 'pip', 'install', name + version] + options_list)
-        print("✔" * 100)
-        print(f"{name} successfully installed")
-        print("✔" * 100)
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to install {name}: {e}")
-
-try:
-    import PyQt5
-except ImportError:
-    _install("PyQt5", "", " --quiet --disable-pip-version-check") 
-
-try:
-    from OpenGL.GL import *
-except ImportError:
-    _install("OpenGL", "", " --quiet --disable-pip-version-check")
-    from OpenGL.GL import *
+from OpenGL.GL import *
 
 from PyQt5.QtWidgets import QApplication, QLabel, QDesktopWidget, QDockWidget, QOpenGLWidget, QPushButton
-
-
 from PyQt5.QtGui import QPainter, QBrush, QPen, QPixmap, QColor, QTransform, QFont, QFontMetrics, QSurfaceFormat, QOpenGLContext, QImage
 from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QRect, QRectF, QBuffer
 
-try: 
-    import imageio
-except ImportError:
-    _install("imageio[ffmpeg]", "", " --quiet --disable-pip-version-check") 
-    import imageio
+import imageio
 
 
-# Set the attributes before creating the QApplication instance
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
 
@@ -500,9 +469,6 @@ def printErrorGL(message = ""):
     elif message != "":
         print(message, " ok")
 
-from shapely.geometry import Polygon
-import triangle as tr
-# pip install shapely triangle
 
 def tessellate(outer_contour, holes=[]):
     if len(outer_contour) < 3:
@@ -858,7 +824,6 @@ def kColor(instance, name, *args, update=True):
     # return (public_getter, public_setter, public_getter_r, public_setter_r, public_getter_g, public_setter_g, public_getter_b, public_setter_b, public_getter_a, public_setter_a)
     return (public_getter, public_setter)
 
-import colorsys
 
 class kRainbow:
     def __init__(self, pieces):

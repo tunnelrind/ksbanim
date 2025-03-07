@@ -1,6 +1,6 @@
 Metadata-Version: 2.2
 Name: ksbanim
-Version: 1.0.9
+Version: 1.0.10
 Summary: A module for animation using PyQt5, OpenGL, and imageio[ffmpeg]
 Home-page: https://github.com/yourusername/ksbanim
 Author: Your Name
@@ -13,6 +13,9 @@ Description-Content-Type: text/markdown
 Requires-Dist: PyQt5
 Requires-Dist: PyOpenGL
 Requires-Dist: imageio[ffmpeg]
+Requires-Dist: requests
+Requires-Dist: triangle
+Requires-Dist: shapely
 Dynamic: author
 Dynamic: author-email
 Dynamic: classifier
