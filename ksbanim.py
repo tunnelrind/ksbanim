@@ -25,7 +25,8 @@ def check_for_updates():
             update = input("Would you like to update now? (enter yes/no): ").strip().lower()
             if update == 'yes':
                 subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
-                print(f"{package_name} has been updated to version {latest_version}. Please restart the application.")
+                print(f"{package_name} has been updated to version {latest_version}. Please restart the python program.")
+                exit()
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
 
@@ -114,7 +115,6 @@ class kInterpolator:
         self.setter(value)
 
         return 1
-
 class kShapeMatcher:
     def __init__(self, end_value, getter, setter):
         self.immediate = kstore.immediate
@@ -128,52 +128,89 @@ class kShapeMatcher:
         self.getter = getter
         self.setter = setter
         self.begin_value = getter()
-
+            
     def resample(self, vertices, target_count):
         if not vertices:
             return [(0, 0)] * target_count
-        
+
         resampled = []
         count = len(vertices)
-        for i in range(target_count):
-            t = i / (target_count - 1)
-            index = t * (count - 1)
-            lower = int(math.floor(index))
-            upper = int(math.ceil(index))
-            if lower == upper:
-                resampled.append(vertices[lower])
-            else:
-                fraction = index - lower
-                x = (1 - fraction) * vertices[lower][0] + fraction * vertices[upper][0]
-                y = (1 - fraction) * vertices[lower][1] + fraction * vertices[upper][1]
-                resampled.append((x, y))
+        new_vertices_count = target_count - count
+
+        for i in range(count):
+            resampled.append(vertices[i])
+            if new_vertices_count > 0 and i < count - 1:
+                next_index = i + 1
+                t = 1 / (new_vertices_count + 1)
+                for j in range(1, new_vertices_count + 1):
+                    fraction = t * j
+                    x = (1 - fraction) * vertices[i][0] + fraction * vertices[next_index][0]
+                    y = (1 - fraction) * vertices[i][1] + fraction * vertices[next_index][1]
+                    resampled.append((x, y))
+                new_vertices_count -= new_vertices_count
+
         return resampled
+    
+class kShapeMatcher:
+    def __init__(self, end_value, getter, setter):
+        self.immediate = kstore.immediate
+        if self.immediate:
+            self.begin_time = kstore.elapsed_timer.elapsed()
+        else:
+            self.begin_time = kstore.milliseconds
+        self.end_time = kstore.animation + self.begin_time
+        self.dt = self.end_time - self.begin_time
+        self.end_value = end_value
+        self.getter = getter
+        self.setter = setter
+        self.begin_value = getter()
+            
+    def resample(self, vertices, target_count):
+        if not vertices:
+            return [(0, 0)] * target_count
 
-    def centroid(self, vertices):
-        x_coords = [v[0] for v in vertices]
-        y_coords = [v[1] for v in vertices]
-        centroid_x = sum(x_coords) / len(vertices)
-        centroid_y = sum(y_coords) / len(vertices)
-        return (centroid_x, centroid_y)
+        resampled = []
+        count = len(vertices)
+        new_vertices_count = target_count - count
 
-    def align_centroids(self, vertices, target_centroid, fraction):
-        cx, cy = self.centroid(vertices)
-        dx = (target_centroid[0] - cx) * fraction
-        dy = (target_centroid[1] - cy) * fraction
-        return [(x + dx, y + dy) for x, y in vertices]
+        for i in range(count):
+            resampled.append(vertices[i])
+            if new_vertices_count > 0 and i < count - 1:
+                next_index = i + 1
+                t = 1 / (new_vertices_count + 1)
+                for j in range(1, new_vertices_count + 1):
+                    fraction = t * j
+                    x = (1 - fraction) * vertices[i][0] + fraction * vertices[next_index][0]
+                    y = (1 - fraction) * vertices[i][1] + fraction * vertices[next_index][1]
+                    resampled.append((x, y))
+                new_vertices_count -= new_vertices_count
 
-    def polar_sort(self, vertices, centroid):
-        return sorted(vertices, key=lambda v: math.atan2(v[1] - centroid[1], v[0] - centroid[0]))
+        return resampled
 
     def blend_vertices(self, begin_vertices, end_vertices, fraction):
         blended_vertices = []
         for bv, ev in zip(begin_vertices, end_vertices):
             blended_vertex = (
-                smooth(bv[0], ev[0], fraction),
-                smooth(bv[1], ev[1], fraction)
+                INTERPOLATION_FUNCTION(bv[0], ev[0], fraction),
+                INTERPOLATION_FUNCTION(bv[1], ev[1], fraction)
             )
             blended_vertices.append(blended_vertex)
         return blended_vertices
+
+    def find_best_shift(self, begin_vertices, end_vertices):
+        min_total_distance = float('inf')
+        best_shift = 0
+        for shift in range(len(begin_vertices)):
+            total_distance = 0
+            for i in range(len(begin_vertices)):
+                bv = begin_vertices[(i + shift) % len(begin_vertices)]
+                ev = end_vertices[i]
+                distance = math.sqrt((bv[0] - ev[0]) ** 2 + (bv[1] - ev[1]) ** 2)
+                total_distance += distance
+            if total_distance < min_total_distance:
+                min_total_distance = total_distance
+                best_shift = shift
+        return best_shift
 
     def interpolate(self, fraction):
         begin_vertices = self.begin_value
@@ -190,21 +227,9 @@ class kShapeMatcher:
         begin_vertices = self.resample(begin_vertices, max_vertices)
         end_vertices = self.resample(end_vertices, max_vertices)
         
-        # Interpolate centroids
-        begin_centroid = self.centroid(begin_vertices)
-        end_centroid = self.centroid(end_vertices)
-        interpolated_centroid = (
-            INTERPOLATION_FUNCTION(begin_centroid[0], end_centroid[0], fraction),
-            INTERPOLATION_FUNCTION(begin_centroid[1], end_centroid[1], fraction)
-        )
-        
-        # Align centroids
-        begin_vertices = self.align_centroids(begin_vertices, interpolated_centroid, fraction)
-        end_vertices = self.align_centroids(end_vertices, interpolated_centroid, 1 - fraction)
-        
-        # Sort vertices based on polar coordinates
-        begin_vertices = self.polar_sort(begin_vertices, interpolated_centroid)
-        end_vertices = self.polar_sort(end_vertices, interpolated_centroid)
+        # Find the best shift for the begin vertices
+        best_shift = self.find_best_shift(begin_vertices, end_vertices)
+        begin_vertices = begin_vertices[best_shift:] + begin_vertices[:best_shift]
         
         # Blend vertices
         interpolated_vertices = self.blend_vertices(begin_vertices, end_vertices, fraction)
@@ -224,6 +249,7 @@ class kShapeMatcher:
         value = self.interpolate(fraction)
         self.setter(value)
         return 1
+    
 
 class kLoop:
     def __init__(self, loop_function, milliseconds):
@@ -474,10 +500,8 @@ def tessellate(outer_contour, holes=[]):
     if len(outer_contour) < 3:
         return outer_contour
 
-    # Create a Shapely polygon with holes
     poly = Polygon(outer_contour, holes)
     
-    # Convert vertices to the format required by the triangle library
     vertices = list(poly.exterior.coords)[:-1]  # Exclude the closing point
     segments = [[i, (i + 1) % len(vertices)] for i in range(len(vertices))]
     
@@ -489,10 +513,10 @@ def tessellate(outer_contour, holes=[]):
     
     poly_dict = {'vertices': vertices, 'segments': segments}
     
-    # Use the triangle library to triangulate the polygon
     triangulated = tr.triangulate(poly_dict, 'p')
+    if 'triangles' not in triangulated:
+        return []
     
-    # Extract the triangles
     triangles = []
     for tri in triangulated['triangles']:
         for idx in tri:
@@ -1246,7 +1270,8 @@ class kShape(ABC):
         return self._vertices
     
     def _setVertices(self, vertices):
-        self._vertices = vertices 
+        self._fillMode = GL_TRIANGLES
+        self._vertices = copy.deepcopy(vertices)
         self._generateVBO()
         self._draw()
 
@@ -1254,8 +1279,8 @@ class kShape(ABC):
         return self.generateVertices()
 
     def setVertices(self, vertices):
-        self.vertices = vertices 
-        action_queue.add(kShapeMatcher(vertices, self._getVertices, self._setVertices))
+        self.vertices = copy.deepcopy(vertices) 
+        action_queue.add(kShapeMatcher(copy.deepcopy(vertices), self._getVertices, self._setVertices))
         
     def toRect(self, *size):
         kstore.scaleAnim(0)
@@ -1380,6 +1405,7 @@ class kEllipse(kShape):
         return num_segments
 
     def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
         num_segments = self._calculateNumSegments(*self._size)
         vertices = []
         for i in range(num_segments):
@@ -1469,6 +1495,8 @@ class kRect(kShape):
         return the_copy
 
     def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
+
         vertices = [
             [0,0],
             [self._size[0], 0],
@@ -1554,6 +1582,8 @@ class kRoundedRect(kShape):
         action_queue.add(kInterpolator(radius, self._getRadius, self._setCircle))
     
     def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
+
         vertices = []
         num_segments = 16
 
@@ -1725,6 +1755,8 @@ class kImage(kShape):
         return the_copy
 
     def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
+
         vertices = [
             [0, 0],
             [self._size[0], 0],
@@ -1841,6 +1873,7 @@ class kTriangle(kShape):
         return the_copy
 
     def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
         height = (math.sqrt(3) / 2) * self._length
 
         vertices = [
@@ -1912,6 +1945,7 @@ class kCursor(kTriangle):
         kstore.unscaleAnim()
     
     def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
         half_side = self._length // 3
         height = self._length
         vertices = [
@@ -1974,6 +2008,7 @@ class kArc(kShape):
         return num_segments
     
     def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
         vertices = [[0,0]]
         num_segments = self._calculateNumSegments(self._radius, self._angle)
 
@@ -2078,6 +2113,7 @@ class kLine(kShape):
     #     self.setSize(x,y)
 
     def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
         vertices = []
 
         half_lineWidth = self._lineWidth / 2
@@ -2142,10 +2178,12 @@ class kPolygon(kShape):
         if shape is None:
             self._setVertices([])
             length = len(vertices)
-            kstore.scaleAnim(1/length)
-            for i in range(1,len(vertices)):
-                self.setVertices(copy.deepcopy(vertices[:i+1]))
-            kstore.unscaleAnim()
+            if length > 0:
+                kstore.scaleAnim(1/length)
+                for i in range(1,len(vertices)):
+                    self.setVertices(copy.deepcopy(vertices[:i+1]))
+                kstore.unscaleAnim()
+            self.vertices = copy.deepcopy(vertices)
 
     def copy(self):
         kstore.scaleAnim()
@@ -2162,6 +2200,12 @@ class kPolygon(kShape):
 
     def generateVertices(self):
         return copy.deepcopy(self.vertices)
+
+    def addVertex(self, *vertex):
+        vertex = toFloatList(vertex)
+        vertices = self.generateVertices()
+        vertices.append(vertex)  
+        self.setVertices(vertices)
 
     def contains(self, *point):
         x, y = toFloatList(point)
@@ -3774,14 +3818,18 @@ def drawArc(radius, angle):
     arc._draw()
     return arc 
 
-def drawPoly(points):
+def drawPoly(vertices):
     """
-        draws a polygon consisting of a given list of points [x,y]
+        draws a polygon consisting of a given list of vertices (points) [x,y]
+
+        **important**
+
+        the vertex coordinates are calculated relative to the **current cursor pos** (setPos)
 
         **example**
         - drawPoly([[100,100], [300,100], [300,300]])
     """
-    polygon = kPolygon(points)
+    polygon = kPolygon(vertices)
     polygon._updateShape()
     polygon._draw()
     return polygon
