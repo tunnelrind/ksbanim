@@ -1,6 +1,6 @@
 Metadata-Version: 2.2
 Name: ksbanim
-Version: 1.0.10
+Version: 1.0.11
 Summary: A module for animation using PyQt5, OpenGL, and imageio[ffmpeg]
 Home-page: https://github.com/yourusername/ksbanim
 Author: Your Name

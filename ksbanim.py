@@ -1369,6 +1369,9 @@ class kEllipse(kShape):
         return the_copy
 
     def _calculateNumSegments(self, a, b):
+        if a == 0 or b == 0:
+            return 0
+        
         h = ((a - b) ** 2) / ((a + b) ** 2)
         circumference = math.pi * (a + b) * (1 + (3 * h) / (10 + math.sqrt(4 - 3 * h)))
 
@@ -1379,7 +1382,7 @@ class kEllipse(kShape):
     def _generateVertices(self):
         num_segments = self._calculateNumSegments(*self._size)
         vertices = []
-        for i in range(num_segments + 1):
+        for i in range(num_segments):
             theta = 2.0 * math.pi * i / num_segments  # Angle in radians
             x = self._size[0] * math.cos(theta)  # X coordinate
             y = self._size[1] * math.sin(theta)  # Y coordinate
@@ -1390,7 +1393,7 @@ class kEllipse(kShape):
     def generateVertices(self):
         num_segments = self._calculateNumSegments(*self.size)
         vertices = []
-        for i in range(num_segments + 1):
+        for i in range(num_segments):
             theta = 2.0 * math.pi * i / num_segments  # Angle in radians
             x = self.size[0] * math.cos(theta)  # X coordinate
             y = self.size[1] * math.sin(theta)  # Y coordinate
@@ -1703,8 +1706,8 @@ class kImage(kShape):
         self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", [width, height])
 
         if True:
-            self._fillColor[3] = 1
-            self.setFillColorA(kstore.fillColor[3])
+            self.initSize([1,1])
+            self.setSize([width, height])
 
     def getWidth(self): pass    
     def setWidth(self, width): pass
@@ -1959,14 +1962,25 @@ class kArc(kShape):
         
         return the_copy
     
+    
+    def _calculateNumSegments(self, radius, angle):
+        if radius == 0:
+            return 1
+        
+        circumference = 2*math.pi*radius
+
+        num_segments = min(100, max(12, int(circumference / 5*angle/360)))
+        
+        return num_segments
+    
     def _generateVertices(self):
         vertices = [[0,0]]
-        num_segments = 100
+        num_segments = self._calculateNumSegments(self._radius, self._angle)
 
         angle_step = self._angle/180*math.pi / num_segments
 
         for i in range(num_segments+1):
-            theta = angle_step * i  
+            theta = angle_step * i
             x = self._radius * math.cos(theta)
             y = self._radius * math.sin(theta)
             vertices.append([x, y])
@@ -1975,12 +1989,12 @@ class kArc(kShape):
 
     def generateVertices(self):
         vertices = [[0,0]]
-        num_segments = 100
+        num_segments = self._calculateNumSegments(self.radius, self.angle)
 
         angle_step = self.angle/180*math.pi / num_segments
 
         for i in range(num_segments+1):
-            theta = angle_step * i  
+            theta = angle_step * i
             x = self.radius * math.cos(theta)
             y = self.radius * math.sin(theta)
             vertices.append([x, y])
