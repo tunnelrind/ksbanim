@@ -3944,21 +3944,21 @@ def penUp():
 
 def left(angle):
     """
-        rotate the cursor to the left (counter clockwise)
+        rotate the cursor to the left (counterclockwise, angle in degrees)
     """
     rotate(angle)
 
 def right(angle):
     """
-        rotate the cursor to the right (counter clockwise)
+        rotate the cursor to the right (clockwise, angle in degrees)
     """
     rotate(-angle)
 
 def rotate(angle):
     """
-        rotate the cursor 
+        rotate the cursor (angle in degrees)
          
-        - positive angles: clockwise
+        - positive angles: counterclockwise
         - negative angles: clockwise
     """
     angle = angle

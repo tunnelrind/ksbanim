@@ -4287,21 +4287,21 @@ ksbanim    </h1>
 </span><span id="L-3944"><a href="#L-3944"><span class="linenos">3944</span></a>
 </span><span id="L-3945"><a href="#L-3945"><span class="linenos">3945</span></a><span class="k">def</span><span class="w"> </span><span class="nf">left</span><span class="p">(</span><span class="n">angle</span><span class="p">):</span>
 </span><span id="L-3946"><a href="#L-3946"><span class="linenos">3946</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-3947"><a href="#L-3947"><span class="linenos">3947</span></a><span class="sd">        rotate the cursor to the left (counter clockwise)</span>
+</span><span id="L-3947"><a href="#L-3947"><span class="linenos">3947</span></a><span class="sd">        rotate the cursor to the left (counterclockwise, angle in degrees)</span>
 </span><span id="L-3948"><a href="#L-3948"><span class="linenos">3948</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-3949"><a href="#L-3949"><span class="linenos">3949</span></a>    <span class="n">rotate</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
 </span><span id="L-3950"><a href="#L-3950"><span class="linenos">3950</span></a>
 </span><span id="L-3951"><a href="#L-3951"><span class="linenos">3951</span></a><span class="k">def</span><span class="w"> </span><span class="nf">right</span><span class="p">(</span><span class="n">angle</span><span class="p">):</span>
 </span><span id="L-3952"><a href="#L-3952"><span class="linenos">3952</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-3953"><a href="#L-3953"><span class="linenos">3953</span></a><span class="sd">        rotate the cursor to the right (counter clockwise)</span>
+</span><span id="L-3953"><a href="#L-3953"><span class="linenos">3953</span></a><span class="sd">        rotate the cursor to the right (clockwise, angle in degrees)</span>
 </span><span id="L-3954"><a href="#L-3954"><span class="linenos">3954</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-3955"><a href="#L-3955"><span class="linenos">3955</span></a>    <span class="n">rotate</span><span class="p">(</span><span class="o">-</span><span class="n">angle</span><span class="p">)</span>
 </span><span id="L-3956"><a href="#L-3956"><span class="linenos">3956</span></a>
 </span><span id="L-3957"><a href="#L-3957"><span class="linenos">3957</span></a><span class="k">def</span><span class="w"> </span><span class="nf">rotate</span><span class="p">(</span><span class="n">angle</span><span class="p">):</span>
 </span><span id="L-3958"><a href="#L-3958"><span class="linenos">3958</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-3959"><a href="#L-3959"><span class="linenos">3959</span></a><span class="sd">        rotate the cursor </span>
+</span><span id="L-3959"><a href="#L-3959"><span class="linenos">3959</span></a><span class="sd">        rotate the cursor (angle in degrees)</span>
 </span><span id="L-3960"><a href="#L-3960"><span class="linenos">3960</span></a><span class="sd">         </span>
-</span><span id="L-3961"><a href="#L-3961"><span class="linenos">3961</span></a><span class="sd">        - positive angles: clockwise</span>
+</span><span id="L-3961"><a href="#L-3961"><span class="linenos">3961</span></a><span class="sd">        - positive angles: counterclockwise</span>
 </span><span id="L-3962"><a href="#L-3962"><span class="linenos">3962</span></a><span class="sd">        - negative angles: clockwise</span>
 </span><span id="L-3963"><a href="#L-3963"><span class="linenos">3963</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="L-3964"><a href="#L-3964"><span class="linenos">3964</span></a>    <span class="n">angle</span> <span class="o">=</span> <span class="n">angle</span>
@@ -6300,13 +6300,13 @@ drawLine(100)
     <a class="headerlink" href="#left"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="left-3946"><a href="#left-3946"><span class="linenos">3946</span></a><span class="k">def</span><span class="w"> </span><span class="nf">left</span><span class="p">(</span><span class="n">angle</span><span class="p">):</span>
 </span><span id="left-3947"><a href="#left-3947"><span class="linenos">3947</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="left-3948"><a href="#left-3948"><span class="linenos">3948</span></a><span class="sd">        rotate the cursor to the left (counter clockwise)</span>
+</span><span id="left-3948"><a href="#left-3948"><span class="linenos">3948</span></a><span class="sd">        rotate the cursor to the left (counterclockwise, angle in degrees)</span>
 </span><span id="left-3949"><a href="#left-3949"><span class="linenos">3949</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="left-3950"><a href="#left-3950"><span class="linenos">3950</span></a>    <span class="n">rotate</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>rotate the cursor to the left (counter clockwise)</p>
+            <div class="docstring"><p>rotate the cursor to the left (counterclockwise, angle in degrees)</p>
 </div>
 
 
@@ -6324,13 +6324,13 @@ drawLine(100)
     <a class="headerlink" href="#right"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="right-3952"><a href="#right-3952"><span class="linenos">3952</span></a><span class="k">def</span><span class="w"> </span><span class="nf">right</span><span class="p">(</span><span class="n">angle</span><span class="p">):</span>
 </span><span id="right-3953"><a href="#right-3953"><span class="linenos">3953</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="right-3954"><a href="#right-3954"><span class="linenos">3954</span></a><span class="sd">        rotate the cursor to the right (counter clockwise)</span>
+</span><span id="right-3954"><a href="#right-3954"><span class="linenos">3954</span></a><span class="sd">        rotate the cursor to the right (clockwise, angle in degrees)</span>
 </span><span id="right-3955"><a href="#right-3955"><span class="linenos">3955</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="right-3956"><a href="#right-3956"><span class="linenos">3956</span></a>    <span class="n">rotate</span><span class="p">(</span><span class="o">-</span><span class="n">angle</span><span class="p">)</span>
 </span></pre></div>
 
 
-            <div class="docstring"><p>rotate the cursor to the right (counter clockwise)</p>
+            <div class="docstring"><p>rotate the cursor to the right (clockwise, angle in degrees)</p>
 </div>
 
 
@@ -6348,9 +6348,9 @@ drawLine(100)
     <a class="headerlink" href="#rotate"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="rotate-3958"><a href="#rotate-3958"><span class="linenos">3958</span></a><span class="k">def</span><span class="w"> </span><span class="nf">rotate</span><span class="p">(</span><span class="n">angle</span><span class="p">):</span>
 </span><span id="rotate-3959"><a href="#rotate-3959"><span class="linenos">3959</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="rotate-3960"><a href="#rotate-3960"><span class="linenos">3960</span></a><span class="sd">        rotate the cursor </span>
+</span><span id="rotate-3960"><a href="#rotate-3960"><span class="linenos">3960</span></a><span class="sd">        rotate the cursor (angle in degrees)</span>
 </span><span id="rotate-3961"><a href="#rotate-3961"><span class="linenos">3961</span></a><span class="sd">         </span>
-</span><span id="rotate-3962"><a href="#rotate-3962"><span class="linenos">3962</span></a><span class="sd">        - positive angles: clockwise</span>
+</span><span id="rotate-3962"><a href="#rotate-3962"><span class="linenos">3962</span></a><span class="sd">        - positive angles: counterclockwise</span>
 </span><span id="rotate-3963"><a href="#rotate-3963"><span class="linenos">3963</span></a><span class="sd">        - negative angles: clockwise</span>
 </span><span id="rotate-3964"><a href="#rotate-3964"><span class="linenos">3964</span></a><span class="sd">    &quot;&quot;&quot;</span>
 </span><span id="rotate-3965"><a href="#rotate-3965"><span class="linenos">3965</span></a>    <span class="n">angle</span> <span class="o">=</span> <span class="n">angle</span>
@@ -6360,10 +6360,10 @@ drawLine(100)
 </span></pre></div>
 
 
-            <div class="docstring"><p>rotate the cursor </p>
+            <div class="docstring"><p>rotate the cursor (angle in degrees)</p>
 
 <ul>
-<li>positive angles: clockwise</li>
+<li>positive angles: counterclockwise</li>
 <li>negative angles: clockwise</li>
 </ul>
 </div>
