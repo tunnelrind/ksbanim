@@ -115,42 +115,8 @@ class kInterpolator:
         self.setter(value)
 
         return 1
-class kShapeMatcher:
-    def __init__(self, end_value, getter, setter):
-        self.immediate = kstore.immediate
-        if self.immediate:
-            self.begin_time = kstore.elapsed_timer.elapsed()
-        else:
-            self.begin_time = kstore.milliseconds
-        self.end_time = kstore.animation + self.begin_time
-        self.dt = self.end_time - self.begin_time
-        self.end_value = end_value
-        self.getter = getter
-        self.setter = setter
-        self.begin_value = getter()
-            
-    def resample(self, vertices, target_count):
-        if not vertices:
-            return [(0, 0)] * target_count
-
-        resampled = []
-        count = len(vertices)
-        new_vertices_count = target_count - count
-
-        for i in range(count):
-            resampled.append(vertices[i])
-            if new_vertices_count > 0 and i < count - 1:
-                next_index = i + 1
-                t = 1 / (new_vertices_count + 1)
-                for j in range(1, new_vertices_count + 1):
-                    fraction = t * j
-                    x = (1 - fraction) * vertices[i][0] + fraction * vertices[next_index][0]
-                    y = (1 - fraction) * vertices[i][1] + fraction * vertices[next_index][1]
-                    resampled.append((x, y))
-                new_vertices_count -= new_vertices_count
-
-        return resampled
     
+   
 class kShapeMatcher:
     def __init__(self, end_value, getter, setter):
         self.immediate = kstore.immediate
@@ -169,33 +135,56 @@ class kShapeMatcher:
         if not vertices:
             return [(0, 0)] * target_count
 
-        resampled = []
-        count = len(vertices)
-        new_vertices_count = target_count - count
+        if len(vertices) == target_count:
+            return vertices
+        
+        total_length = 0
+        distances = []
+        for i in range(0, len(vertices)):
+            dx = vertices[(i+1)%len(vertices)][0] - vertices[i][0]
+            dy = vertices[(i+1)%len(vertices)][1] - vertices[i][1]
+            d = math.sqrt(dx**2 + dy**2)
+            total_length += d
+            distances.append(d)
 
-        for i in range(count):
-            resampled.append(vertices[i])
-            if new_vertices_count > 0 and i < count - 1:
-                next_index = i + 1
-                t = 1 / (new_vertices_count + 1)
-                for j in range(1, new_vertices_count + 1):
-                    fraction = t * j
-                    x = (1 - fraction) * vertices[i][0] + fraction * vertices[next_index][0]
-                    y = (1 - fraction) * vertices[i][1] + fraction * vertices[next_index][1]
-                    resampled.append((x, y))
-                new_vertices_count -= new_vertices_count
+        interval_length = total_length / (target_count - 1)
 
+        resampled = [vertices[0]]
+        i = 0
+        cumulative_length = interval_length
+
+        while len(resampled) < target_count:
+            if distances[i] <= cumulative_length:
+                resampled.append(vertices[i+1])
+                cumulative_length -= distances[i]
+                i = i + 1
+            else:
+                cumulative_length += interval_length
+                this = i
+                next = (i+1)%len(vertices)
+                if distances[i] == 0:
+                    fraction = 0.01
+                else:
+                    fraction = cumulative_length/distances[i]
+
+                x = (1-fraction)*vertices[this][0] + fraction*vertices[next][0]
+                y = (1-fraction)*vertices[this][1] + fraction*vertices[next][1]
+                resampled.append([x,y])
+                
         return resampled
 
     def blend_vertices(self, begin_vertices, end_vertices, fraction):
         blended_vertices = []
         for bv, ev in zip(begin_vertices, end_vertices):
             blended_vertex = (
-                INTERPOLATION_FUNCTION(bv[0], ev[0], fraction),
-                INTERPOLATION_FUNCTION(bv[1], ev[1], fraction)
+                self.interpolate_value(bv[0], ev[0], fraction),
+                self.interpolate_value(bv[1], ev[1], fraction)
             )
             blended_vertices.append(blended_vertex)
         return blended_vertices
+
+    def interpolate_value(self, start, end, fraction):
+        return (1 - fraction) * start + fraction * end
 
     def find_best_shift(self, begin_vertices, end_vertices):
         min_total_distance = float('inf')
@@ -216,22 +205,18 @@ class kShapeMatcher:
         begin_vertices = self.begin_value
         end_vertices = self.end_value
         
-        # Handle empty shapes
         if not begin_vertices:
             return end_vertices
         if not end_vertices:
             return begin_vertices
         
-        # Resample shapes to have the same number of vertices
         max_vertices = max(len(begin_vertices), len(end_vertices))
         begin_vertices = self.resample(begin_vertices, max_vertices)
         end_vertices = self.resample(end_vertices, max_vertices)
         
-        # Find the best shift for the begin vertices
         best_shift = self.find_best_shift(begin_vertices, end_vertices)
         begin_vertices = begin_vertices[best_shift:] + begin_vertices[:best_shift]
         
-        # Blend vertices
         interpolated_vertices = self.blend_vertices(begin_vertices, end_vertices, fraction)
         
         return interpolated_vertices
@@ -249,7 +234,6 @@ class kShapeMatcher:
         value = self.interpolate(fraction)
         self.setter(value)
         return 1
-    
 
 class kLoop:
     def __init__(self, loop_function, milliseconds):
