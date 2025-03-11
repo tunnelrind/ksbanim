@@ -170,7 +170,7 @@ class kShapeMatcher:
                 x = (1-fraction)*vertices[this][0] + fraction*vertices[next][0]
                 y = (1-fraction)*vertices[this][1] + fraction*vertices[next][1]
                 resampled.append([x,y])
-                
+
         return resampled
 
     def blend_vertices(self, begin_vertices, end_vertices, fraction):
@@ -1105,11 +1105,17 @@ class kShape(ABC):
     def backward(self, distance):
         self.forward(-distance)
 
-    def left(self, angle):
-        self.rotate(angle)
+    def left(self, distance):
+        self.setPos(self.getX()-distance, self.getY())
 
-    def right(self, angle):
-        self.rotate(-angle)
+    def right(self, distance):
+        self.setPos(self.getX()+distance, self.getY())
+
+    def up(self, distance):
+        self.setPos(self.getX(), self.getY()+distance)
+
+    def down(self, distance):
+        self.setPos(self.getX()-distance, self.getY()-distance)
 
     def rotate(self, angle):
         angle = angle
@@ -3530,7 +3536,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow"]
+__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -3953,17 +3959,30 @@ def penUp():
     """
     kstore.setPen(False)
 
-def left(angle):
+def left(distance):
     """
-        rotate the cursor to the left (counterclockwise, angle in degrees)
+        move the drawing cursor a certain distance to the left (negative x)
     """
-    rotate(angle)
+    setPos(getX() - distance, getY())
 
-def right(angle):
+def right(distance):
     """
-        rotate the cursor to the right (clockwise, angle in degrees)
+        move the drawing cursor a certain distance to the right (positive x)
     """
-    rotate(-angle)
+    setPos(getX() + distance, getY())
+
+
+def down(distance):
+    """
+        move the drawing cursor a certain distance downwards (negative y)
+    """
+    setPos(getX(), getY() - distance)
+
+def up(distance):
+    """
+        move the drawing cursor a certain distance upwards (positive y)
+    """
+    setPos(getX(), getY() + distance)
 
 def rotate(angle):
     """
