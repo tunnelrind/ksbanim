@@ -368,9 +368,16 @@ class kStore:
         old_pos = copy.deepcopy(self.pos)
         line = None
         if self.pendown:
-            length = ((new_pos[0] - old_pos[0])**2 + (new_pos[1] - old_pos[1])**2)**0.5
+            dx = new_pos[0] - old_pos[0]
+            dy = new_pos[1] - old_pos[1]
+
+            length = (dx**2 + dy**2)**0.5
             temp = kstore.milliseconds
+            angle = math.atan2(dy,dx)
+            old_rot = self.rot 
+            self.rot = math.degrees(angle)
             line = drawLine(length)
+            self.rot = old_rot
             self.pos = new_pos
             kstore.milliseconds = temp
             self.cursor.setPos(self.pos)
