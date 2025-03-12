@@ -1,10 +1,10 @@
 Metadata-Version: 2.2
 Name: ksbanim
-Version: 1.0.22
-Summary: A module for animation using PyQt5, OpenGL, and imageio[ffmpeg]
-Home-page: https://github.com/yourusername/ksbanim
-Author: Your Name
-Author-email: your.email@example.com
+Version: 1.1.1
+Summary: A module for animation based on PyQt5, OpenGL, and imageio[ffmpeg]
+Home-page: https://github.com/tunnelrind/ksbanim
+Author: Biasini Dario
+Author-email: tunnelrind@lernbaum.ch
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
