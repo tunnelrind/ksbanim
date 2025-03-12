@@ -694,6 +694,49 @@ def kVec2(instance, name, *initial_value, update=True):
 
     return (public_getter, public_setter, public_getter_x, public_setter_x, public_getter_y, public_setter_y)
 
+
+def kVecN(instance, name, *initial_value, update=True):
+    name = name
+    private_name = f"_{name}"
+    capitalized_name = name[0].upper() + name[1:]
+    getter_name = f"get{capitalized_name}"
+    setter_name = f"set{capitalized_name}"
+
+    setattr(instance, private_name, toFloatList(initial_value))
+    setattr(instance, name, toFloatList(initial_value))
+
+    # > (x,y)
+
+    def private_getter():
+        return getattr(instance, private_name)
+
+    def private_setter(*value):
+        setattr(instance, private_name, toFloatList(value))
+        if update:
+            instance._updateShape()
+        instance._draw()
+
+    def public_getter():
+        return getattr(instance, name, initial_value)
+
+    def public_setter(*value):
+        setattr(instance, name, toFloatList(value))
+        action_queue.add(kInterpolator(toFloatList(value), private_getter, private_setter))
+
+    
+    setattr(instance, f"_{getter_name}", private_getter)
+    setattr(instance, f"_{setter_name}", private_setter)
+    setattr(instance, f"{getter_name}", public_getter)
+    setattr(instance, f"{setter_name}", public_setter)
+
+    def public_set_both(value):
+        setattr(instance, private_name, toFloatList(value))
+        setattr(instance, name, toFloatList(value))
+
+    setattr(instance, f"init{capitalized_name}", public_set_both)
+
+    return (public_getter, public_setter)
+
 def kColor(instance, name, *args, update=True):
     name = name
     private_name = f"_{name}"
@@ -955,11 +998,11 @@ def replaceLatex(text):
 def toFloatList(args):
     cast = float 
     if len(args) == 1 and isinstance(args[0], (list, tuple)):
-        if not len(args[0]) == 2:
+        if not len(args[0]) > 1:
             raise ValueError("expected x and y, but got only x")
         return list([cast(a) for a in args[0]])
     else:
-        if not len(args) == 2:
+        if not len(args) > 1:
             raise ValueError("expected x and y, but got only x")
         return list([cast(a) for a in args])
     
@@ -2886,6 +2929,114 @@ class kInput(kLabel):
             painter.drawLine(int(cursor_x), int(cursor_y), int(cursor_x), int(cursor_y + font_metrics.height()))
             painter.end()
 
+class kList(kShape):
+    def __init__(self, the_list, width, height, *args, shape=None):
+        super().__init__(shape)
+        self.name = "kList"
+
+        self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", [width, height])
+        self.getList, self.setList = kVecN(self, "list", the_list)
+
+    def getSize(self): pass 
+    def setSize(self, *size): pass 
+    def getWidth(self): pass 
+    def setWidth(self, width): pass
+    def getHeight(self): pass
+    def setHeight(self, height): pass 
+    def getList(self): pass 
+    def setList(self, the_list): pass
+
+    def _generateVBO(self):
+        self._triangles = copy.deepcopy(self._vertices)
+        self._vbo = -1
+
+        flattened_triangles = [coord for vertex in self._triangles for coord in vertex]
+        triangle_data = struct.pack(f'{len(flattened_triangles)}f', *flattened_triangles)
+
+        if self._vbo_triangle is not None:
+            glDeleteBuffers(1, [self._vbo_triangle])
+            self._vbo_triangle = None 
+        
+        self._vbo_triangle = glGenBuffers(1)
+
+        glBindBuffer(GL_ARRAY_BUFFER, self._vbo_triangle)
+        glBufferData(GL_ARRAY_BUFFER, len(triangle_data), triangle_data, GL_DYNAMIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+
+    def copy(self):
+        kstore.scaleAnim(0)
+        the_copy = kList(self.list, self.width, self.height, shape=self)
+        the_copy._updateShape()
+        the_copy._draw()
+        the_copy.show()
+        kstore.unscaleAnim(0)
+
+        return the_copy
+
+    def _generateRect(self, x, y, width, height):
+        rect = [
+            [x,y],
+            [x+width, y],
+            [x+width, y+height],
+            [x+width, y+height],
+            [x, y+height],
+            [x,y]
+        ]
+
+        return rect 
+    
+    def _generateVertices(self):
+        self._fillMode = GL_TRIANGLES
+        
+        length = len(self._list)
+
+        x = 0
+        y = 0
+        width = self._size[0]/length
+        threshold = 2
+        if width >= threshold:
+            dx  = width - 1
+        else:
+            dx = width
+
+        the_max = max(self.list)
+        the_min = min(self.list)
+
+        factor = self._size[1]/(the_max + abs(the_min))
+
+        vertices = []
+
+        for i in range(len(self._list)):
+            dy = self._list[i]*factor
+            rect = self._generateRect(x,y+abs(the_min*factor),dx,dy)
+            x += dx
+            if width >= threshold:
+                x += 1
+            vertices.extend(rect)
+        
+        for vertex in vertices:
+            vertex[0] -= self._size[0]/2
+            vertex[1] -= self._size[1]/2
+
+        return vertices
+    
+    def generateVertices(self):
+        return copy.deepcopy(self._list)
+
+    def contains(self, *point):
+        x, y = toFloatList(point)
+        
+        local_x = x - self._pos[0]
+        local_y = y - self._pos[1]
+
+        angle = math.radians(self._rot)  
+        cos_theta = math.cos(angle)
+        sin_theta = math.sin(angle)
+        rotated_x = local_x * cos_theta + local_y * sin_theta + self._pivot[0]
+        rotated_y = -local_x * sin_theta + local_y * cos_theta + self._pivot[1]
+
+        return (0 <= rotated_x <= self._size[0]) and (0 <= rotated_y <= self._size[1])
+        
 class kGrid:
     def __init__(self, window, width, height, scale_factor):
         self._size = [int(width*scale_factor),int( height*scale_factor)]
@@ -3500,7 +3651,7 @@ def _getSample(name):
     elif name == "strings1":
         the_list = ["Alice", "Bob", "Charlie", "Danita", "Erich", "Frederica", "Gian", "Hanna", "Ibn", "Jasmin", "Kevin", "Lisa", "Manuel", "Nora", "Oskar", "Petra", "Qasim", "Rihanna", "Sandro", "Theres", "Ulrich", "Vivienne", "Walter", "Xenia", "Yannes", "Zora"]
     elif name == "int1":
-        the_list = list([random.randint(1,100) for x in range(0,10)])
+        the_list = list([random.randint(1,100) for x in range(0,100)])
     elif name == "int2":
         the_list = list([abs(x  - x**3) for x in range(0,10)])
     elif name == "int3":
@@ -4025,7 +4176,7 @@ def getRot():
         - positive angles: clockwise
         - negative angles: clockwise
     """
-    kstore.getRot()
+    return kstore.getRot()
 
 def setLine(value):
     """
@@ -4759,41 +4910,11 @@ def getListSample(name):
 
 
 def drawList(the_list, width, height):
-    old_pos = getPos()
-
-    length = len(the_list)
-    old_anim = getAnim()
-    old_delay = getDelay()
-
-    setTime(0)
-
-    dx = width/length - 1*(length-1)
-
-
-    the_max = max(the_list)
-    the_min = min(the_list)
-
-    factor = height/(the_max + abs(the_min))
-
-    for i in range(len(the_list)):
-        dy = the_list[i]*factor
-        forward(dx/2)
-        rotate(90)
-        forward(dy/2 + abs(the_min))
-        rotate(-90)
-        drawRect(dx, dy)
-        rotate(90)
-        backward(dy/2 + abs(the_min) + 20)
-        rotate(-90)
-        drawText(str(i))
-        rotate(90)
-        forward(20)
-        rotate(-90)
-        forward(dx/2+1)
+    the_list = kList(the_list, width, height)
+    the_list._updateShape()
+    the_list._draw()
+    return the_list
     
-    setPos(old_pos)
-    setAnim(old_anim)
-    setDelay(old_delay)
 # ==================================== TEST CODE ===========================================
 
 if __name__ == "__main__":
