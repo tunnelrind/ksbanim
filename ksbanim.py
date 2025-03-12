@@ -3694,7 +3694,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawVector', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
+__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -3905,25 +3905,69 @@ def drawLine(*size):
     line._draw()
     return line
 
+def drawLineTo(*point):
+    """
+        draws a line from the cursor position to a certain point (ignores rotation)
 
-def drawVector(length):
+        **Examples**
+        - drawLineTo(600,600)
+        - drawLineTo([600,600])
+    """
+
+    point = toFloatList(point)
+    old_rot = getRot()
+    setRot(0)
+    dx = point[0] - kstore.getX()
+    dy = point[1] - kstore.getY()
+    
+    line = drawLine(dx, dy)
+
+    setRot(old_rot)
+    return line 
+
+def drawVector(*size):
     """
         draws a vector (with arrowhead) of a certain size (width, height) or with a given length
 
         **Examples**
-        - Draw a line of length 100 with angle 45:
+        - Draw a vector of length 100 with angle 45:
         
             setRot(45)
-            drawLine(100) 
+            drawVector(100) 
 
-        - Draw a line with x-distance 100 and y-distance 300:
+        - Draw a vector with x-distance 100 and y-distance 300:
         
-            drawLine(100, 300)
+            drawVector(100, 300)
     """
-    vector = kVector(length, 0)
+    if not isinstance(size[0], (list,tuple)) and len(size) == 1:
+        size = [size[0], 0]
+
+    size = toFloatList(size)
+
+    vector = kVector(size)
     vector._updateShape()
     vector._draw()
     return vector
+
+def drawVectorTo(*point):
+    """
+        draws a line from the cursor position to a certain point (ignores rotation)
+
+        **Examples**
+        - drawLineTo(600,600)
+        - drawLineTo([600,600])
+    """
+
+    point = toFloatList(point)
+    old_rot = getRot()
+    setRot(0)
+    dx = point[0] - kstore.getX()
+    dy = point[1] - kstore.getY()
+    
+    vector = drawVector(dx, dy)
+
+    setRot(old_rot)
+    return vector 
 
 def drawTriangle(length):
     """
