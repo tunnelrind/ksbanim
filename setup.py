@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ksbanim',
-    version='1.1.2',
+    version='1.1.3',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',

@@ -12,6 +12,11 @@ from shapely.geometry import Polygon
 import triangle as tr
 import colorsys
 
+def is_version_outdated(current_version, latest_version):
+    current_parts = list(map(int, current_version.split('.')))
+    latest_parts = list(map(int, latest_version.split('.')))
+    return current_parts < latest_parts
+
 def check_for_updates():
     package_name = 'ksbanim'
     try:
@@ -20,13 +25,14 @@ def check_for_updates():
         response.raise_for_status()
         latest_version = response.json()['info']['version']
         
-        if current_version != latest_version:
+        if is_version_outdated(current_version, latest_version):
             print(f"A new version of {package_name} is available ({latest_version}). You have {current_version}.")
-            update = input("Would you like to update now? (enter yes/no): ").strip().lower()
-            if update == 'yes':
-                subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
-                print(f"{package_name} has been updated to version {latest_version}. Please restart the python program.")
-                exit()
+
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
+            print("-"*30)
+            print(f"{package_name} has been updated to version {latest_version}. Please restart your python program.")
+            print("-"*30)
+            exit()
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
 
@@ -51,11 +57,20 @@ if app is None:
 
 # ==================================== INTERPOLATION/ACTIONS ===========================================
 def interpolate(begin_value, end_value, fraction):
+    def pad_list(lst, length):
+        if not lst:
+            return [0] * length  # or any default value you prefer
+        return lst + [lst[-1]] * (length - len(lst))
+
     if (isinstance(begin_value, list) or isinstance(begin_value, tuple)) and (isinstance(end_value, tuple) or isinstance(end_value, list)):
+        max_length = max(len(begin_value), len(end_value))
+        begin_value = pad_list(begin_value, max_length)
+        end_value = pad_list(end_value, max_length)
+        
         if isinstance(begin_value[0], list) or isinstance(begin_value[0], tuple):
-            return list([interpolate(begin_value[i], end_value[i], fraction) for i in range(len(begin_value))])
+            return [interpolate(begin_value[i], end_value[i], fraction) for i in range(max_length)]
         else:
-            return list([INTERPOLATION_FUNCTION(begin_value[i], end_value[i], fraction) for i in range(len(begin_value))])
+            return [INTERPOLATION_FUNCTION(begin_value[i], end_value[i], fraction) for i in range(max_length)]
     else:
         return INTERPOLATION_FUNCTION(begin_value, end_value, fraction)
 
@@ -998,12 +1013,8 @@ def replaceLatex(text):
 def toFloatList(args):
     cast = float 
     if len(args) == 1 and isinstance(args[0], (list, tuple)):
-        if not len(args[0]) > 1:
-            raise ValueError("expected x and y, but got only x")
         return list([cast(a) for a in args[0]])
     else:
-        if not len(args) > 1:
-            raise ValueError("expected x and y, but got only x")
         return list([cast(a) for a in args])
     
 def toColor(args):
@@ -2726,7 +2737,11 @@ class kButton(kLabel):
 
     def _onUIClick(self, x, y, button):
         self._fillColor = self._focusColor
+
+        kstore.immediate = True
         self._handler()
+        kstore.immediate = False 
+
         self._updateShape()
 
     def _onUIRelease(self, x, y, button):
@@ -2798,8 +2813,9 @@ class kInput(kLabel):
 
     def _emit(self):
         if self._handler:
+            kstore.immediate = True
             self._handler(self._text)
-        
+            kstore.immediate = False 
         self._focused = False 
         self._fillColor = self._passiveColor
         self._updateShape()
@@ -2990,6 +3006,9 @@ class kList(kShape):
         
         length = len(self._list)
 
+        if length == 0:
+            return []
+        
         x = 0
         y = 0
         width = self._size[0]/length
@@ -3510,8 +3529,7 @@ class kMainWindow(QOpenGLWidget):
 
         self.button_store.add(button_text)
         for handler in on_mouse_pressed_handlers:
-            if handler[1] == button_text:
-                handler[0](*pos, button_text)
+            handler[0](*pos, button_text)
 
     def mouseReleaseEvent(self, event):
         button = event.button()
@@ -3529,9 +3547,7 @@ class kMainWindow(QOpenGLWidget):
 
         self.button_store.remove(button_text)
         for handler in on_mouse_pressed_handlers:
-            if handler[1] == button_text:
-                pos = event.pos()
-                handler[0](*self.translateMousePos(*pos), button_text)
+            handler[0](*pos, button_text)
 
     def translateMousePos(self, pos):
         x = pos[0]
@@ -4547,7 +4563,7 @@ def removeOnKeyReleased(handler_function):
             i += 1
 
     
-def onMousePressed(handler_function, button):
+def onMousePressed(handler_function, button=None):
     """
         executes the handler_function(key) if a mouse button is pressed
         
@@ -4586,7 +4602,7 @@ def removeOnMousePressed(handler_function):
             i += 1
 
     
-def onMouseReleased(handler_function, button):
+def onMouseReleased(handler_function, button=None):
     """
         executes the handler_function(key) if a mouse button is released
         
