@@ -1011,11 +1011,18 @@ def replaceLatex(text):
     return text    
 
 def toFloatList(args):
-    cast = float 
+    cast = float
+    
+    def convert_to_float(item):
+        if isinstance(item, (list, tuple)):
+            return [convert_to_float(sub_item) for sub_item in item]
+        else:
+            return cast(item)
+    
     if len(args) == 1 and isinstance(args[0], (list, tuple)):
-        return list([cast(a) for a in args[0]])
+        return convert_to_float(args[0])
     else:
-        return list([cast(a) for a in args])
+        return [convert_to_float(a) for a in args]
     
 def toColor(args):
     if len(args) == 1 and isinstance(args[0], (list, tuple)):
@@ -1756,39 +1763,31 @@ class kRoundedRect(kShape):
                 return True
 
         return False
-
 class kImage(kShape):
     def __init__(self, file_name, width):
         super().__init__()
         self.name = "kImage"
         self.file_name = file_name
-
-        try:
+        self._texture_id = None 
+        
+        try:    
             self.image = imageio.imread(file_name)
-            self.image = self.image[::-1, :, :]  # Flip the image vertically
-            if self.image.shape[2] == 4:
-                self.image_format = GL_RGBA
-            else:
-                self.image_format = GL_RGB
-            self.image_data = self.image.tobytes()
+            pixels = self._flatten(self.image.tolist())
         except Exception:
             print("Image not found in workspace folder", file_name)
+            return
 
         height = int(self.image.shape[0] * (width / self.image.shape[1]))
-        self.texture_id = None
 
-        self.texture_id = glGenTextures(1)
-        glBindTexture(GL_TEXTURE_2D, self.texture_id)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-        glTexImage2D(GL_TEXTURE_2D, 0, self.image_format, self.image.shape[1], self.image.shape[0], 0, self.image_format, GL_UNSIGNED_BYTE, self.image_data)
-        glBindTexture(GL_TEXTURE_2D, 0)
+        self.rows = self.image.shape[0]
+        self.columns = self.image.shape[1]
 
         self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", [width, height])
 
-        if True:
-            self.initSize([1,1])
-            self.setSize([width, height])
+        self.pixels = pixels
+        self._pixels = self.pixels[:]
+
+        self._generateTexture()
 
     def getWidth(self): pass    
     def setWidth(self, width): pass
@@ -1804,6 +1803,54 @@ class kImage(kShape):
         kstore.unscaleAnim()
 
         return the_copy
+
+    def _flatten(self, the_list):
+        result = []
+        for element in the_list:
+            for element2 in element:
+                if len(element2) == 3:
+                    element2.append(255)
+                result.append([int(c) for c in element2])
+        return result 
+    
+    def getRows(self):
+        result = [] 
+        k = 0
+        for i in range(self.rows):
+            row = []
+            for j in range(self.columns):
+                row.append(self.pixels[k])
+                k += 1
+            result.append(row)
+        return result 
+    
+    def setRows(self, rows):
+        pixels = self._flatten(rows)
+        self.setPixels(pixels) 
+
+    def getPixels(self):
+        return self.pixels[:]
+    
+    def setPixels(self, pixels):
+        self.pixels = pixels[:]
+        self._pixels = self.pixels[:]
+        self._generateTexture()
+
+    def _generateTexture(self):
+        if len(self._pixels) == 0:
+            return        
+        
+        image_data = bytes([int(channel) for pixel in reversed(self._pixels) for channel in pixel])
+
+        if self._texture_id is not None:
+            glDeleteTextures(int(self._texture_id))
+
+        self._texture_id = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, self._texture_id)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, self.columns, self.rows, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data)
+        glBindTexture(GL_TEXTURE_2D, 0)
 
     def _generateVertices(self):
         self._fillMode = GL_TRIANGLE_FAN
@@ -1854,7 +1901,7 @@ class kImage(kShape):
 
         if self._fill:
             glEnable(GL_TEXTURE_2D)
-            glBindTexture(GL_TEXTURE_2D, self.texture_id)
+            glBindTexture(GL_TEXTURE_2D, self._texture_id)
 
             glBegin(GL_TRIANGLE_FAN)
             glTexCoord2f(0.0, 0.0)
