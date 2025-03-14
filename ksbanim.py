@@ -1051,7 +1051,7 @@ ui_buffer = []
 class kShape(ABC):
     counter = 0
 
-    def __init__(self, shape = None):
+    def __init__(self, shape = None):            
         self.name = "kShape"
         self.id = kShape.counter
         kShape.counter += 1
@@ -1211,6 +1211,12 @@ class kShape(ABC):
         action_queue.add(kInterpolator(color, self._getColor, self._setColor))
 
     def _generateVBO(self):
+        if kstore.window is None:
+            print("")
+            print(" > have you forgotten createWindow()?")
+            print("")
+            exit()
+
         flattened_vertices = [float(coord) for vertex in self._vertices for coord in vertex]
         vertex_data = struct.pack(f'{len(flattened_vertices)}f', *flattened_vertices)
 
@@ -1389,26 +1395,6 @@ class kShape(ABC):
         kstore.scaleAnim(0)
         new_shape = kArc(radius, angle, shape=self)
         new_shape._setVertices(self.generateVertices())
-        self.hide()
-        kstore.unscaleAnim()
-        new_shape.setVertices(new_shape.generateVertices())
-        return new_shape 
-
-    def toLine(self, *size):
-        kstore.scaleAnim(0)
-        new_shape = kLine(size, shape=self)
-        new_shape._setVertices(self.generateVertices())
-        self.hide()
-        kstore.unscaleAnim()
-        new_shape.setVertices(new_shape.generateVertices())
-        return new_shape 
-
-    def toVector(self, *size):
-        kstore.scaleAnim(0)
-        new_shape = kVector(*size, shape=self)
-        new_shape._setVertices(self.generateVertices())
-        new_shape.initFill(True)
-        new_shape.initLine(False)
         self.hide()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
