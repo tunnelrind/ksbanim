@@ -4,3 +4,4 @@ imageio[ffmpeg]
 requests
 triangle
 shapely
+setuptools

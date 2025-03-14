@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ksbanim',
-    version='1.1.4',
+    version='1.1.5',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',
@@ -10,7 +10,8 @@ setup(
         'imageio[ffmpeg]',
         'requests',
         'triangle',
-        'shapely'
+        'shapely',
+        'setuptools'
     ],
     author='Biasini Dario',
     author_email='tunnelrind@lernbaum.ch',
