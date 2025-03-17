@@ -1756,7 +1756,9 @@ class kImage(kShape):
         self.name = "kImage"
         self.file_name = file_name
         self._texture_id = None 
-        main_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), file_name))
+        
+        script_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+        main_file_path = os.path.abspath(os.path.join(script_path, file_name))
 
         try:    
             self.image = imageio.imread(main_file_path)
