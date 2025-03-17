@@ -33,6 +33,7 @@ def check_for_updates():
             print(f"{package_name} has been updated to version {latest_version}. Please restart your python program.")
             print("-"*30)
             exit()
+            
     except Exception as e:
         print(f"An error occurred while checking for updates: {e}")
 
