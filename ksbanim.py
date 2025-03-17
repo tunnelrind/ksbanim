@@ -38,7 +38,6 @@ def check_for_updates():
 
 check_for_updates()
 
-
 from OpenGL.GL import *
 
 from PyQt5.QtWidgets import QApplication, QLabel, QDesktopWidget, QDockWidget, QOpenGLWidget, QPushButton
@@ -1749,19 +1748,22 @@ class kRoundedRect(kShape):
                 return True
 
         return False
+    
 class kImage(kShape):
     def __init__(self, file_name, width):
         super().__init__()
         self.name = "kImage"
         self.file_name = file_name
         self._texture_id = None 
-        
+        main_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), file_name))
+
         try:    
             self.image = imageio.imread(file_name)
             pixels = self._flatten(self.image.tolist())
         except Exception:
-            print("Image not found in workspace folder", file_name)
-            return
+            print(f" > Image {file_name} not found in workspace folder")
+            print(" > exiting program")
+            exit()
 
         height = int(self.image.shape[0] * (width / self.image.shape[1]))
 
