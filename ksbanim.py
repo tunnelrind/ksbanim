@@ -1758,7 +1758,7 @@ class kImage(kShape):
         main_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), file_name))
 
         try:    
-            self.image = imageio.imread(file_name)
+            self.image = imageio.imread(main_file_path)
             pixels = self._flatten(self.image.tolist())
         except Exception:
             print(f" > Image {file_name} not found in workspace folder")
