@@ -99,6 +99,25 @@ def smooth(begin_value, end_value, fraction):
 
 INTERPOLATION_FUNCTION = smooth
 
+class kBreak:
+    def __init__(self):        
+        max_end_time = 0
+        for action in action_queue.queue:
+            max_time = action.begin_time 
+            if hasattr(action, "end_time"):
+                max_time += action.end_time - action.begin_time
+            if max_time > max_end_time:
+                max_end_time = max_time 
+
+        self.begin_time = max_end_time
+        kstore.milliseconds = max_end_time - kstore.delay
+
+    def process(self, the_time):
+        if the_time >= self.begin_time:
+            return -1 
+        else:
+            return 0
+        
 class kInterpolator:
     def __init__(self, end_value, getter, setter):
         self.immediate = kstore.immediate
@@ -508,6 +527,9 @@ def tessellate(outer_contour, holes=[]):
 
     poly = Polygon(outer_contour, holes)
     
+    if not poly.is_valid:
+        poly = poly.buffer(0)
+
     vertices = list(poly.exterior.coords)[:-1]  # Exclude the closing point
     segments = [[i, (i + 1) % len(vertices)] for i in range(len(vertices))]
     
@@ -1756,7 +1778,7 @@ class kImage(kShape):
         self.name = "kImage"
         self.file_name = file_name
         self._texture_id = None 
-        
+
         script_path = os.path.dirname(os.path.abspath(sys.argv[0]))
         main_file_path = os.path.abspath(os.path.join(script_path, file_name))
 
@@ -1764,7 +1786,7 @@ class kImage(kShape):
             self.image = imageio.imread(main_file_path)
             pixels = self._flatten(self.image.tolist())
         except Exception:
-            print(f" > Image {file_name} not found in workspace folder")
+            print(f" > Image {file_name} not found in workspace folder {script_path}")
             print(" > exiting program")
             exit()
 
@@ -2064,11 +2086,9 @@ class kArc(kShape):
         self.getRadius, self.setRadius = kNumber(self, "radius", radius)
         self.getAngle, self.setAngle = kNumber(self, "angle", angle)
 
-
         if shape is None:
             self.initAngle(1)
             self.setAngle(angle)
-
 
     def getRadius(self): pass
     def setRadius(self, radius): pass
@@ -3748,7 +3768,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
+__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -4906,6 +4926,9 @@ def endRecording():
     kstore.scaleAnim(0)
     action_queue.add(kSetter(kstore.window.setRecord, False))
     kstore.unscaleAnim()
+
+def waitForFinish():
+    action_queue.add(kBreak())
 
 def saveAsMp4(filename):
     """
