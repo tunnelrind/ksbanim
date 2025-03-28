@@ -6,6 +6,7 @@ import threading
 import os
 import struct
 import copy 
+import atexit 
 from abc import ABC, abstractmethod
 import pkg_resources, requests
 from shapely.geometry import Polygon
@@ -21,21 +22,19 @@ def check_for_updates():
     package_name = 'ksbanim'
     try:
         current_version = pkg_resources.get_distribution(package_name).version
-        response = requests.get(f'https://pypi.org/pypi/{package_name}/json')
+        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=0.5)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
         
         if is_version_outdated(current_version, latest_version):
-            print(f"A new version of {package_name} is available ({latest_version}). You have {current_version}.")
-
             subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
             print("-"*30)
             print(f"{package_name} has been updated to version {latest_version}. Please restart your python program.")
             print("-"*30)
             exit()
             
-    except Exception as e:
-        print(f"An error occurred while checking for updates: {e}")
+    except requests.RequestException:
+        pass  # Ignore network errors and do nothing
 
 check_for_updates()
 
@@ -310,6 +309,16 @@ class kMessage:
         else:
             return 0
 
+class kWait:
+    def __init__(self):
+        self.trigger = False 
+    
+    def setTrigger(self, value):
+        self.trigger = value 
+    
+    def getTrigger(self):
+        return self.trigger 
+    
 class kAction:
     def __init__(self, action_function):
         self.immediate = kstore.immediate
@@ -381,7 +390,7 @@ class kStore:
         self.animation = 250
         self.anim_stack = []
         self.line = False 
-        self.lineColor = [200,150,30, 255]
+        self.lineColor = [200,200,50, 255]
         self.lineWidth = 2
         self.fill = True
         self.fillColor = [255,200,50, 255]
@@ -1105,8 +1114,8 @@ class kShape(ABC):
         self.getFill, self.setFill = kValue(self, "fill", kstore.fill, update=False)
         self.getLine, self.setLine = kValue(self, "line", kstore.line, update=False)
 
-        self.getOnClick, self.setOnClick = kValue(self, "onClick", None, update=False)
-        self.getOnRelease, self.setOnRelease = kValue(self, "onRelease", None, update=False)
+        self.getOnMousePress, self.setOnMousePress = kValue(self, "onMousePress", None, update=False)
+        self.getOnMouseRelease, self.setOnMouseRelease = kValue(self, "onMouseRelease", None, update=False)
         self.getOnMouseEnter, self.setOnMouseEnter = kValue(self, "onMouseEnter", None, update=False)
         self.getOnMouseExit, self.setOnMouseExit = kValue(self, "onMouseExit", None, update=False)
         
@@ -1120,8 +1129,8 @@ class kShape(ABC):
             self.initLineColor(shape.lineColor)
             self.initFill(shape.fill)
             self.initLine(shape.line)
-            self.initOnClick(shape.onClick)
-            self.initOnRelease(shape.onRelease)
+            self.initOnMousePress(shape.onMousePress)
+            self.initOnMouseRelease(shape.onMouseRelease)
             self.initOnMouseEnter(shape.onMouseEnter)
             self.initOnMouseExit(shape.onMouseExit)
             self._vertices = shape._vertices 
@@ -1135,41 +1144,224 @@ class kShape(ABC):
 
         shape_buffer.append(self)
 
-    def getPos(self): pass
-    def setPos(self, *point): pass
-    def getX(self): pass 
-    def setX(self, x): pass 
-    def getY(self): pass
-    def setY(self, y): pass 
-    def getRot(self): pass 
-    def setRot(self, angle): pass
-    def getPivot(self): pass 
-    def setPivot(self, *point): pass
-    def getPivotX(self): pass 
-    def setPivotX(self, x): pass
-    def getPivotY(self): pass
-    def setPivotY(self, y): pass 
-    def getFill(self): pass        
-    def setFill(self, value): pass
-    def getLine(self): pass         
-    def setLine(self, value): pass
-    def getFillColor(self): pass 
-    def setFillColor(self, *rgb): pass
-    def getLineColor(self): pass
-    def setLineColor(self, *rgb): pass
-    def getLineWidth(self): pass    
-    def setLineWidth(self, value): pass
+    def getPos(self): 
+        """
+            get the shape position as a list [x,y]
+
+            - x from left to right 
+            - y from bottom to top 
+        """
+        pass
+    def setPos(self, *point): 
+        """
+            set the shape position
+
+            - x from left to right 
+            - y from bottom to top 
+
+            **examples**
+            - circle.setPos(400,400)
+            - circle.setPos([400, 400]) *as a list*
+        """
+        pass
+
+    def getX(self): 
+        """
+            get x-coordinate of the shape position (x from left to right)
+        """
+        pass 
+    def setX(self, x): 
+        """
+            set the shape x-coordinate (x from left to right)
+        """
+        pass 
+    def getY(self): 
+        """
+            get y-coordinate of the shape position (y from bottom to top)
+        """
+        pass
+    def setY(self, y): 
+        """
+            set the shape y-coordinate (y from bottom to top)
+        """
+        pass 
+    def getRot(self): 
+        """
+            get current shape rotation angle in degrees
+
+            - 0 degrees points to the right
+            - positive angles: clockwise
+            - negative angles: clockwise
+        """
+        pass 
+    def setRot(self, angle): 
+        """
+            set the shape rotation angle in degrees 
+            
+            - 0 degrees points to the right
+            - positive angles: clockwise
+            - negative angles: clockwise
+
+            **example**
+            - circle.setRot(60)
+        """
+        pass
+    def getPivot(self): 
+        """
+            returns the pivot point (rotational and positional center) of the shape as a list [x,y]
+
+            default value is [0,0]
+        """
+        pass 
+    def setPivot(self, *point): 
+        """
+            set the pivot point (rotational and positional center) of the shape
+
+            default value is [0,0]
+
+            **examples**
+            - shape.setPivot(50,50)
+            - shape.setPivot([50,50]) *as a list*
+        """
+        pass
+    def getPivotX(self): 
+        """
+            returns the x-coordinate of the pivot point (rotational and positional center) of the shape
+        """
+        pass 
+    def setPivotX(self, x): 
+        """
+            set the x-coordinate of the pivot point (rotational and positional center) of the shape
+
+            **example**
+            - shape.setPivotX(50)
+        """
+        pass
+    def getPivotY(self): 
+        """
+            returns the x-coordinate of the pivot point (rotational and positional center) of the shape
+        """
+        pass
+    def setPivotY(self, y): 
+        """
+            set the y-coordinate of the pivot point (rotational and positional center) of the shape
+
+            **example**
+            - shape.setPivotY(50)
+        """
+        pass 
+    def getFill(self):
+        """
+            check, if the shape is drawn with filling (returns *True* or *False*)
+        """
+        pass        
+    def setFill(self, value): 
+        """
+            define, whether the shape is drawn with filling (expects value *True* or *False*)
+
+            **examples**
+            - circle.setFill(True)
+            - circle.setLine(False)
+        """
+        pass
+    def getLine(self): 
+        """
+            check, if the shape borders are drawn (returns *True* or *False*)
+        """
+        pass         
+    def setLine(self, value): 
+        """
+            define, whether the shape border is drawn (expects value *True* or *False*)
+
+            **examples**
+            - circle.setLine(True)
+            - circle.setFill(False)
+        """
+        pass
+    def getFillColor(self): 
+        """
+            returns the shape fill color as a list [r,g,b,a] 
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+        """
+        pass 
+    def setFillColor(self, *rgb): 
+        """
+            set the shape fill color rgba
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+
+            **examples**
+            - circle.setFillColor(255,0,0)
+            - circle.setFillColor(255,0,0, 100) *with alpha (transparency)*
+            - circle.setFillColor([255,0,0]) *as a list*
+            - circle.setFillColor([255,0,0,100]) *as a list (including alpha)*
+        """
+        pass
+    def getLineColor(self): 
+        """
+            returns the shape line color as a list [r,g,b,a] 
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+        """
+        pass
+    def setLineColor(self, *rgb): 
+        """
+            set the shape line color in rgba
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+
+            **examples**
+            - circle.setLineColor(255,0,0)
+            - circle.setLineColor(255,0,0, 100) *with alpha (transparency)*
+            - circle.setLineColor([255,0,0]) *as a list*
+            - circle.setLineColor([255,0,0,100]) *as a list (including alpha)*
+        """
+        pass
+    def getLineWidth(self): 
+        """
+            returns the shape line width in pixel
+        """
+        pass    
+    def setLineWidth(self, value): 
+        """
+            set the shape line width in pixel
+
+            **example**
+            - shape.setLineWidth(2)
+        """
+        pass
 
     def getName(self):
+        """
+            returns the name of the shape
+        """
         return self.name + " (" + str(self.id) + ")"
     
     def print(self, *message):
+        """
+            print a message prepended by the shape's name
+        """
         print("{:<15}".format(self.name) + "(" + str(self.id) + ") >           " , *message)
 
     def show(self):
+        """
+            show the shape
+        """
         self.setReady(True)
     
     def hide(self):
+        """
+            hide the shape
+        """
         self.setReady(False)
     
     def _remove(self):
@@ -1177,37 +1369,71 @@ class kShape(ABC):
         shape_buffer.remove(self)
 
     def remove(self):
+        """
+            remove the shape
+        """
         self.ready = False
         action_queue.add(kAction(self._remove))
 
     def move(self, *distance):
+        """
+            move the shape certain distance in x and y direction 
+
+            **examples**
+            - circle.move(100, 400)
+            - circle.move([100,400]) *as a list*
+        """
         distance = toFloatList(distance)
         self.pos[0] += distance[0]
         self.pos[1] += distance[1]
         action_queue.add(kInterpolator(self.pos, self._getPos, self._setPos))
 
     def forward(self, distance):
+        """
+           move the shape a certain distance forward at the direction it is currently facing (rotation)
+        """
         angle = self.rot/180*math.pi
         self.pos[0] += math.cos(angle)*distance
         self.pos[1] += math.sin(angle)*distance 
         action_queue.add(kInterpolator(self.pos, self._getPos, self._setPos))
 
     def backward(self, distance):
+        """
+           move the shape a certain distance backward at the direction it is currently facing (rotation)
+        """
         self.forward(-distance)
 
     def left(self, distance):
+        """
+            move the shape a certain distance to the left (negative x)
+        """
         self.setPos(self.getX()-distance, self.getY())
 
     def right(self, distance):
+        """
+            move the shape a certain distance to the right (positive x)
+        """
         self.setPos(self.getX()+distance, self.getY())
 
     def up(self, distance):
+        """
+            move the shape a certain distance upwards (positive y)
+        """
         self.setPos(self.getX(), self.getY()+distance)
 
     def down(self, distance):
+        """
+            move the shape a certain distance downwards (negative y)
+        """
         self.setPos(self.getX()-distance, self.getY()-distance)
 
     def rotate(self, angle):
+        """
+            rotate the shape (angle in degrees)
+            
+            - positive angles: counterclockwise
+            - negative angles: clockwise
+        """
         angle = angle
         self.rot += angle
         action_queue.add(kInterpolator(self.rot, self._getRot, self._setRot))
@@ -1221,12 +1447,32 @@ class kShape(ABC):
         self._draw()
 
     def getColor(self):
+        """
+            returns the shape fill color as a list [r,g,b,a] 
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+        """
         return self.fillColor
 
     def _getColor(self):
         return self._fillColor
     
     def setColor(self, *rgba):
+        """
+            set the shape fill and line color in rgba 
+            
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+
+            **examples**
+            - circle.setColor(255,0,0)
+            - circle.setColor(255,0,0, 100) *with alpha (transparency)*
+            - circle.setColor([255,0,0]) *as a list*
+            - circle.setColor([255,0,0,100]) *as a list (including alpha)*
+        """
         color = toColor(rgba)
         self.lineColor = color
         self.fillColor = color
@@ -1330,14 +1576,84 @@ class kShape(ABC):
         printErrorGL()
         glPopMatrix()
 
-    def getOnMouseEnter(self): pass
-    def setOnMouseEnter(self, handler): pass
-    def getOnMouseExit(self): pass
-    def setOnMouseExit(self, handler): pass 
-    def getOnClick(self): pass
-    def setOnClick(self, handler): pass 
-    def getOnRelease(self): pass
-    def setOnRelease(self, handler): pass
+    def getOnMouseEnter(self): 
+        """
+            returns the mouse enter function
+        """
+        pass
+    def setOnMouseEnter(self, handler): 
+        """
+            handler function is executed every time the mouse enters the shape
+
+            handler(x,y) must accept two numbers x and y
+
+            **example**
+
+            def handler(x,y):
+                print(x,y)
+            
+            circle.setOnMouseEnter(handler)
+        """
+        pass
+    def getOnMouseExit(self): 
+        """
+            returns the mouse exit function
+        """
+        pass
+    def setOnMouseExit(self, handler): 
+        """
+            handler function is executed every time the mouse exits the shape
+
+            handler(x,y) must accept two numbers x and y
+
+            **example**
+
+            def handler(x,y):
+                print(x,y)
+            
+            circle.setOnMouseExit(handler)
+        """
+        pass 
+    def getOnMousePress(self): 
+        """
+            returns the mouse pressed function
+        """
+        pass
+    def setOnMousePress(self, handler): 
+        """
+            executes the handler_function(key) if a mouse button is while hovering over the shape
+            
+            - the handler_function excpects three arguments x, y and *button* (a string)
+            - button is either "left", "middle" or "right"
+
+            **examples**
+
+            def button_press(x,y,button):
+                print(x, y, button)
+
+            shape.onMousePress(button_press) *# executes on every button press*
+        """
+        pass 
+    def getOnMouseRelease(self): 
+        """
+            returns the mouse release function
+        """
+        pass
+    def setOnMouseRelease(self, handler):
+        """
+            executes the handler_function(key) if a mouse button is released while hovering over the shape
+            
+            - the handler_function excpects three arguments x, y and *button* (a string)
+            - button is either "left", "middle" or "right"
+
+            **examples**
+
+            def button_release(x,y,button):
+                print(x, y, button)
+
+            shape.onMouseRelease(button_release) *# executes on every button release*
+        """
+        pass
 
 
     @abstractmethod 
@@ -1346,10 +1662,28 @@ class kShape(ABC):
 
     @abstractmethod
     def generateVertices(self):
+        """
+            generates and returns a list of vertices corresponding to the shape's parameters
+        """
         pass 
 
     @abstractmethod
     def copy(self):
+        """
+            draws and returns a copy of the shape
+        """
+        pass
+
+    @abstractmethod
+    def contains(self, *point):
+        """
+            returns True, if the point is inside the shape, and False if its'outside
+
+            **examples**
+
+            - shape.contains(100,100)
+            - shape.contains([100,100]) *as a list*
+        """
         pass
 
     def _getVertices(self):
@@ -1362,40 +1696,86 @@ class kShape(ABC):
         self._draw()
 
     def getVertices(self):
+        """
+            returns a list of vertices of the shape's border
+        """
         return self.generateVertices()
 
     def setVertices(self, vertices):
+        """
+            set the list of vertices of the shape's border
+        """
         self.vertices = copy.deepcopy(vertices) 
         action_queue.add(kShapeMatcher(copy.deepcopy(vertices), self._getVertices, self._setVertices))
         
     def toRect(self, *size):
+        """
+            transform into a rectangle
+
+            returns the rectangle shape
+
+            the original shape is removed
+
+            **example**
+            rect = shape.toRect(100,100)
+        """
         kstore.scaleAnim(0)
         new_shape = kRect(*size, shape=self)
         new_shape._setVertices(self.generateVertices())
-        self.hide()
+        self.remove()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
         return new_shape 
 
     def toCircle(self, radius):
+        """
+            transform into a circle
+
+            returns the circle shape
+
+            the original shape is removed
+
+            **example**
+            circle = shape.toCircle(100)
+        """
         kstore.scaleAnim(0)
         new_shape = kCircle(radius, shape=self)
         new_shape._setVertices(self.generateVertices())            
-        self.hide()
+        self.remove()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
         return new_shape 
 
     def toEllipse(self, *size):
+        """
+            transform into an ellipse
+
+            returns the ellipse shape
+
+            the original shape is removed
+
+            **example**
+            ellipse = shape.toEllipse(100, 200)
+        """
         kstore.scaleAnim(0)
         new_shape = kEllipse(*size, shape=self)
         new_shape._setVertices(self.generateVertices())
-        self.hide()
+        self.remove()
         kstore.unscaleAnim()
         new_shape.setVertices(new_shape.generateVertices())
         return new_shape 
 
     def toRoundedRect(self, width, height, radius):
+        """
+            transform into a rounded rectangle
+
+            returns the rounded rectangle shape
+
+            the original shape is removed
+
+            **example**
+            rounded_rect = shape.toRoundedRect(100, 200, 20)
+        """
         kstore.scaleAnim(0)
         new_shape = kRoundedRect(width, height, radius, shape=self)
         new_shape._setVertices(self.generateVertices())
@@ -1405,6 +1785,16 @@ class kShape(ABC):
         return new_shape 
 
     def toTriangle(self, length):
+        """
+            transform into a triangle
+
+            returns the triangle shape
+
+            the original shape is removed
+
+            **example**
+            triangle = shape.toTriangle(100)
+        """
         kstore.scaleAnim(0)
         new_shape = kTriangle(length, shape=self)
         new_shape._setVertices(self.generateVertices())
@@ -1414,6 +1804,16 @@ class kShape(ABC):
         return new_shape 
 
     def toArc(self, radius, angle):
+        """
+            transform into an arc
+
+            returns the arc shape
+
+            the original shape is removed
+
+            **example**
+            arc = shape.toArc(100, 45)
+        """
         kstore.scaleAnim(0)
         new_shape = kArc(radius, angle, shape=self)
         new_shape._setVertices(self.generateVertices())
@@ -1423,6 +1823,21 @@ class kShape(ABC):
         return new_shape 
 
     def toPolygon(self, vertices):
+        """
+            transform into a polygon
+
+            returns the polygon shape
+
+            the original shape is removed
+
+            **example**
+            vertices = [
+                [0,0],
+                [100,100],
+                [50,200]
+            ]
+            polygon = shape.toPolygon(vertices)
+        """
         kstore.scaleAnim(0)
         new_shape = kPolygon(vertices, shape=self)
         new_shape._setVertices(self.generateVertices())
@@ -1442,12 +1857,40 @@ class kEllipse(kShape):
             self.initSize([1,1])
             self.setSize(size)
     
-    def getSize(self): pass 
-    def setSize(self, *size): pass
-    def getA(self): pass        
-    def setA(self, a): pass
-    def getB(self): pass 
-    def setB(self, b): pass
+    def getSize(self): 
+        """
+            returns the half-axis as a list [a,b]
+        """
+        pass 
+    def setSize(self, *size): 
+        """
+            set the half-axis a,b
+
+            **examples**
+            - ellipse.setSize(100,200)
+            - ellipse.setSize([100,200]) *as a list*
+        """
+        pass
+    def getA(self): 
+        """
+            return the horizontal half-axis a
+        """
+        pass        
+    def setA(self, a): 
+        """
+            set the horizontal half-axis a
+        """
+        pass
+    def getB(self): 
+        """
+            return the vertical half-axis b
+        """
+        pass 
+    def setB(self, b): 
+        """
+            set the vertical half-axis b
+        """
+        pass
 
     def copy(self):
         kstore.scaleAnim(0)
@@ -1499,16 +1942,16 @@ class kEllipse(kShape):
         if self._size[0] == 0 or self._size[1] == 0:
             return False 
         
-        center_x = self.pos[0]
-        center_y = self.pos[1]
+        center_x = self._pos[0]
+        center_y = self._pos[1]
         
         angle_rad = math.radians(self._rot)
 
         translated_x = x - center_x
         translated_y = y - center_y
 
-        rotated_x = translated_x * math.cos(angle_rad) + translated_y * math.sin(angle_rad) + self._pivot[0] - self._size[0]
-        rotated_y = -translated_x * math.sin(angle_rad) + translated_y * math.cos(angle_rad) + self._pivot[1] - self._size[1]
+        rotated_x = translated_x * math.cos(angle_rad) + translated_y * math.sin(angle_rad) + self._pivot[0]
+        rotated_y = -translated_x * math.sin(angle_rad) + translated_y * math.cos(angle_rad) + self._pivot[1]
 
         return (rotated_x / self._size[0]) ** 2 + (rotated_y / self._size[1]) ** 2 <= 1
 
@@ -1524,9 +1967,15 @@ class kCircle(kEllipse):
         self._setSize([radius, radius])
 
     def getRadius(self):
+        """
+            returns the circle's radius
+        """
         return self.size[0]
 
     def setRadius(self, radius):
+        """
+            set the circle's radius
+        """
         self.setSize([radius, radius])
 
 class kRect(kShape):
@@ -1543,12 +1992,40 @@ class kRect(kShape):
             self.setHeight(size[1])
             kstore.unscaleAnim()
 
-    def getWidth(self): pass    
-    def setWidth(self, width): pass
-    def getHeight(self): pass
-    def setHeight(self, height): pass
-    def getSize(self): pass
-    def setSize(self, *size): pass
+    def getWidth(self): 
+        """
+            returns the rectangles' width
+        """
+        pass    
+    def setWidth(self, width): 
+        """
+            set the rectangles's width
+        """
+        pass
+    def getHeight(self): 
+        """
+            returns the rectangle's height
+        """
+        pass
+    def setHeight(self, height): 
+        """
+            set the rectangle's height
+        """
+        pass
+    def getSize(self): 
+        """
+            returns the rectangle's size as a list [width,height]
+        """
+        pass
+    def setSize(self, *size): 
+        """
+            set the rectangle's width and height
+
+            **examples**
+            - rect.setSize(100,200)
+            - rect.setSize([100,200]) *as a list*
+        """
+        pass
 
     def copy(self):
         kstore.scaleAnim(0)
@@ -1616,14 +2093,50 @@ class kRoundedRect(kShape):
             self.initSize([1,1])
             self.setSize([width, height])
 
-    def getWidth(self): pass
-    def setWidth(self, width): pass
-    def getHeight(self): pass
-    def setHeight(self, height): pass
-    def getSize(self): pass
-    def setSize(self, *size): pass
-    def getRadius(self): pass
-    def setRadius(self, radius): pass
+    def getWidth(self): 
+        """
+            returns the rectangles' width
+        """
+        pass    
+    def setWidth(self, width): 
+        """
+            set the rectangles's width
+        """
+        pass
+    def getHeight(self): 
+        """
+            returns the rectangle's height
+        """
+        pass
+    def setHeight(self, height): 
+        """
+            set the rectangle's height
+        """
+        pass
+    def getSize(self): 
+        """
+            returns the rectangle's size as a list [width,height]
+        """
+        pass
+    def setSize(self, *size): 
+        """
+            set the rectangle's width and height
+
+            **examples**
+            - rect.setSize(100,200)
+            - rect.setSize([100,200]) *as a list*
+        """
+        pass
+    def getRadius(self): 
+        """
+            get the corner radius of the rounded rect
+        """
+        pass
+    def setRadius(self, radius): 
+        """
+            set the corner radius of the rounded rect
+        """
+        pass
 
     def copy(self):
         kstore.scaleAnim(0)
@@ -1644,6 +2157,9 @@ class kRoundedRect(kShape):
         self._draw()
 
     def setCircle(self, radius):
+        """
+            morph the rounded rect with a certain radius
+        """
         self.radius = radius
         action_queue.add(kInterpolator(radius, self._getRadius, self._setCircle))
     
@@ -1802,10 +2318,26 @@ class kImage(kShape):
 
         self._generateTexture()
 
-    def getWidth(self): pass    
-    def setWidth(self, width): pass
-    def getHeight(self): pass
-    def setHeight(self, height): pass
+    def getWidth(self): 
+        """
+            returns the images's width
+        """
+        pass    
+    def setWidth(self, width): 
+        """
+            set the images's width
+        """
+        pass
+    def getHeight(self): 
+        """
+            returns the images's height
+        """
+        pass
+    def setHeight(self, height): 
+        """
+            set the images's height
+        """
+        pass
 
     def copy(self):
         kstore.scaleAnim(0)
@@ -1827,6 +2359,11 @@ class kImage(kShape):
         return result 
     
     def getRows(self):
+        """
+            get the rgba-pixel data as a list of rows,
+
+            each row containing a list of [r,g,b,a] values
+        """
         result = [] 
         k = 0
         for i in range(self.rows):
@@ -1838,13 +2375,24 @@ class kImage(kShape):
         return result 
     
     def setRows(self, rows):
+        """
+           set the rgba-pixel data as a list of rows,
+
+           each row containing a list of [r,g,b,a] values
+        """
         pixels = self._flatten(rows)
         self.setPixels(pixels) 
 
     def getPixels(self):
+        """
+            returns a list of [r,g,b,a] pixels
+        """
         return self.pixels[:]
     
     def setPixels(self, pixels):
+        """
+            set the list of [r,g,b,a] pixels
+        """
         self.pixels = pixels[:]
         self._pixels = self.pixels[:]
         self._generateTexture()
@@ -1967,10 +2515,21 @@ class kTriangle(kShape):
             self.initLength(1)
             self.setLength(length)
 
-    def getLength(self): pass
-    def setLength(self, length): pass
+    def getLength(self): 
+        """
+            get the triangle length
+        """
+        pass
+    def setLength(self, length): 
+        """
+            get the triangle length
+        """
+        pass
 
     def getHeight(self):
+        """
+            get the triangle height
+        """
         return (math.sqrt(3) / 2) * self.length
 
     def copy(self):
@@ -2090,10 +2649,27 @@ class kArc(kShape):
             self.initAngle(1)
             self.setAngle(angle)
 
-    def getRadius(self): pass
-    def setRadius(self, radius): pass
-    def getAngle(self): pass
-    def setAngle(self, angle): pass
+    def getRadius(self): 
+        """
+            get the arc radius
+        """
+        pass
+    def setRadius(self, radius): 
+        """
+            set the arc radius
+        """
+        pass
+    
+    def getAngle(self): 
+        """
+            get the arc opening angle in degrees
+        """
+        pass
+    def setAngle(self, angle): 
+        """
+            set the arc opening angle in degrees
+        """
+        pass
 
     def copy(self):
         kstore.scaleAnim(0)
@@ -2183,12 +2759,40 @@ class kLine(kShape):
             self.initSize([x,y])
             self.setLength(length)
 
-    def getWidth(self): pass
-    def setWidth(self, width): pass
-    def getHeight(self): pass
-    def setHeight(self, height): pass
-    def getSize(self): pass
-    def setSize(self, *size): pass
+    def getWidth(self): 
+        """
+            returns the line's horizontal distance
+        """
+        pass    
+    def setWidth(self, width): 
+        """
+            set the line's horizontal distance
+        """
+        pass
+    def getHeight(self): 
+        """
+            returns the line's vertical distance
+        """
+        pass
+    def setHeight(self, height): 
+        """
+            set the line's vertical distance
+        """
+        pass
+    def getSize(self): 
+        """
+            returns the line's size as a list [width,height]
+        """
+        pass
+    def setSize(self, *size): 
+        """
+            set the line's width and height
+
+            **examples**
+            - line.setSize(100,200)
+            - line.setSize([100,200]) *as a list*
+        """
+        pass
 
     def copy(self):
         kstore.scaleAnim(0)
@@ -2199,7 +2803,17 @@ class kLine(kShape):
         kstore.unscaleAnim()
         return the_copy
 
+    def getLength(self):
+        """
+            get the line's length
+        """
+        current_length = (width**2 + height**2)**0.5
+        return current_length
+    
     def setLength(self, length):
+        """
+            set the line's length without changing the orientation
+        """
         width = self.getWidth()
         height = self.getHeight()
         current_length = (width**2 + height**2)**0.5
@@ -2311,6 +2925,13 @@ class kPolygon(kShape):
         return copy.deepcopy(self.vertices)
 
     def addVertex(self, *vertex):
+        """
+            add a vertex to the end of the polygon's vertices list
+
+            **example**
+            - polygon.addVertex(100,200)
+            - polygon.addVertex([100,200]) *as a list*
+        """
         vertex = toFloatList(vertex)
         vertices = self.generateVertices()
         vertices.append(vertex)  
@@ -2454,8 +3075,8 @@ class kUIElement:
         self.getFill, self.setFill = kValue(self, "fill", kstore.fill, update=False)
         self.getLine, self.setLine = kValue(self, "line", kstore.line, update=False)
 
-        self.getOnClick, self.setOnClick = kValue(self, "onClick", None, update=False)
-        self.getOnRelease, self.setOnRelease = kValue(self, "onRelease", None, update=False)
+        self.getOnMousePress, self.setOnMousePress = kValue(self, "onMousePress", None, update=False)
+        self.getOnMouseRelease, self.setOnMouseRelease = kValue(self, "onMouseRelease", None, update=False)
         self.getOnMouseEnter, self.setOnMouseEnter = kValue(self, "onMouseEnter", None, update=False)
         self.getOnMouseExit, self.setOnMouseExit = kValue(self, "onMouseExit", None, update=False)
 
@@ -2486,19 +3107,61 @@ class kUIElement:
             self.setHeight(height)
             kstore.unscaleAnim()
     
-    def getWidth(self): pass
-    def setWidth(self, width): pass
-    def getHeight(self): pass
-    def setHeight(self, height): pass
-    def getSize(self): pass
-    def setSize(self, *size): pass
-    def getRadius(self): pass
-    def setRadius(self, radius): pass
+    def getWidth(self): 
+        """
+            returns the element width
+        """
+        pass    
+    def setWidth(self, width): 
+        """
+            set the element width
+        """
+        pass
+    def getHeight(self): 
+        """
+            returns the element height
+        """
+        pass
+    def setHeight(self, height): 
+        """
+            set the element height
+        """
+        pass
+    def getSize(self): 
+        """
+            returns the element size as a list [width,height]
+        """
+        pass
+    def setSize(self, *size): 
+        """
+            set the element width and height
+
+            **examples**
+            - element.setSize(100,200)
+            - element.setSize([100,200]) *as a list*
+        """
+        pass
+    def getRadius(self): 
+        """
+            get the corner radius of the element
+        """
+        pass
+    def setRadius(self, radius): 
+        """
+            set the corner radius of the element
+        """
+        pass
 
     def getName(self):
+        """
+            returns the name of the shape
+        """
         return self.name + " (" + str(self.id) + ")"
     
     def print(self, *message):
+        """
+            print a message prepended by the shape's name
+        """
         print("{:<15}".format(self.name) + "(" + str(self.id) + ") >           " , *message)
 
     def _updateShape(self): 
@@ -2548,6 +3211,14 @@ class kUIElement:
         pass
         
     def contains(self, *point):
+        """
+            returns True, if the point is inside the element, and False if its'outside
+
+            **examples**
+
+            - element.contains(100,100)
+            - element.contains([100,100]) *as a list*
+        """
         x, y = toFloatList(point)
         
         # Translate the point to the local coordinate system
@@ -2608,24 +3279,103 @@ class kLabel(kUIElement):
         self.setLabel(label)
         kstore.unscaleAnim()
 
-    def getLabel(self): pass
-    def setLabel(self, label): pass
-    def getText(self): pass
-    def setText(self, text): pass
-    def getAlignX(self): pass
-    def setAlignX(self, align): pass
-    def getAlignY(self): pass
-    def setAlignY(self, align): pass
-    def getPadding(self): pass
-    def setPadding(self, padding): pass
+    def getLabel(self): 
+        """
+            get the label name
+        """
+        pass
+    def setLabel(self, label): 
+        """
+            set the label name
+        """
+        pass
+    def getText(self): 
+        """
+            get the label text
+        """
+        pass
+    def setText(self, text): 
+        """
+            set the label text
+        """
+        pass
+    def getAlignX(self): 
+        """
+            get the horizontal alignment of the text ("left", "center", "right")
+        """
+        pass
+    def setAlignX(self, align): 
+        """
+            set the horizontal alignment of the text ("left", "center", "right")
+        """
+        pass
+    def getAlignY(self): 
+        """
+            get the vertical alignment of the text ("top", "center", "bottom")
+        """
+        pass
+    def setAlignY(self, align): 
+        """
+            get the vertical alignment of the text ("top", "center", "bottom")
+        """
+        pass
+    def getPadding(self): 
+        """
+            get the padding of the text
+        """
+        pass
+    def setPadding(self, padding): 
+        """
+            set the padding of the text
+        """
+        pass
 
-    def getFontColor(self): pass
-    def setFontColor(self, *rgba): pass
-    def getFontSize(self): pass
-    def setFontSize(self, size): pass
+    def getFontColor(self): 
+        """
+            returns the element's font color as a list [r,g,b,a] 
 
-    def getOverflow(self): pass 
-    def setOverflow(self, value): pass 
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+        """
+        pass
+    def setFontColor(self, *rgba): 
+        """"
+            set the element's font color (for texts, labels, inputs, buttons) in rgba
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+
+            **examples**
+
+            - element.setFontColor(255,0,0)
+            - element.setFontColor(255,0,0, 100) *with alpha (transparency)*
+            - element.setFontColor([255,0,0]) *as a list*
+            - element.setFontColor([255,0,0,100]) *as a list (including alpha)*
+        """
+        pass
+    def getFontSize(self): 
+        """
+            get font size in pixel
+        """
+        pass
+    def setFontSize(self, size): 
+        """
+            set font size in pixel
+        """
+        pass
+
+    def getOverflow(self): 
+        """
+            get the overflow ("clip", "wrap") of the text
+        """
+        pass 
+    def setOverflow(self, value): 
+        """
+            set the overflow ("clip", "wrap") of the text
+        """
+        pass 
 
     def _updateShape(self):
         super()._updateShape()
@@ -2780,8 +3530,8 @@ class kButton(kLabel):
         self.getHandler, self.setHandler = kValue(self, "handler", handler)
 
         self.initLine(True)
-        self.initOnClick(self._onUIClick)
-        self.initOnRelease(self._onUIRelease)
+        self.initOnMousePress(self._onUIClick)
+        self.initOnMouseRelease(self._onUIRelease)
         self.initOnMouseEnter(self._onUIMouseEnter)
         self.initOnMouseExit(self._onUIMouseExit)
         self.initFocusColor(kstore.fillColor)
@@ -2790,8 +3540,24 @@ class kButton(kLabel):
 
         self.initRadius(25)
 
-    def getHandler(self): pass
-    def setHandler(self, handler): pass
+    def getHandler(self): 
+        """
+            get the button handler
+        """
+        pass
+    def setHandler(self, handler): 
+        """
+            set the button handler
+
+            - handler is an function that executes, when the button is pressed
+            - the handler function excpects 0 arguments
+
+            **example**
+            
+            def print_button():
+                print("world")
+        """ 
+        pass
 
     def _onUIClick(self, x, y, button):
         self._fillColor = self._focusColor
@@ -2804,15 +3570,15 @@ class kButton(kLabel):
 
     def _onUIRelease(self, x, y, button):
         if self.contains(x,y):
-            self._onUIMouseEnter()
+            self._onUIMouseEnter(x,y)
         else:
-            self._onUIMouseExit()
+            self._onUIMouseExit(x,y)
 
-    def _onUIMouseEnter(self):
+    def _onUIMouseEnter(self, x, y):
         self._fillColor = self._hoverColor
         self._updateShape()
 
-    def _onUIMouseExit(self):
+    def _onUIMouseExit(self, x, y):
         self._fillColor = self._passiveColor
         self._updateShape()
 
@@ -2824,8 +3590,8 @@ class kInput(kLabel):
         self.getHandler, self.setHandler = kValue(self, "handler", handler)
         self.initOverflow("clip")
         self.initLine(True)
-        self.initOnClick(self._onUIClick)
-        self.initOnRelease(self._onUIRelease)
+        self.initOnMousePress(self._onUIClick)
+        self.initOnMouseRelease(self._onUIRelease)
         self.initOnMouseEnter(self._onUIMouseEnter)
         self.initOnMouseExit(self._onUIMouseExit)
 
@@ -2837,10 +3603,32 @@ class kInput(kLabel):
         self._blink_timer.timeout.connect(self._toggle_cursor_visibility)
         self._blink_timer.start(500)
 
-    def getHandler(self): pass
-    def setHandler(self, handler): pass
-    def getLabel(self): pass
-    def setLabel(self, label): pass 
+    def getHandler(self): 
+        """
+            get the input handler
+        """
+        pass
+    def setHandler(self, handler): 
+        """
+            set the input handler
+            
+            - handler is a function that executes, if the return key is pressed; handler expects one argument (the text as a string)
+            
+            **example**
+            
+            input.setHandler(print) # prints the input content, if return is pressed
+        """
+        pass
+    def getLabel(self): 
+        """
+            get the input name
+        """
+        pass
+    def setLabel(self, label): 
+        """
+            get the input name
+        """
+        pass 
     
     def _onUIClick(self, x, y, button):
         self._focused = True
@@ -2848,12 +3636,12 @@ class kInput(kLabel):
         self._cursor_position = len(self._text)
         self._updateShape()
 
-    def _onUIMouseEnter(self):
+    def _onUIMouseEnter(self, x, y):
         if not self._focused:
             self._fillColor = self._hoverColor
             self._updateShape()
 
-    def _onUIMouseExit(self):
+    def _onUIMouseExit(self, x, y):
         if not self._focused:
             self._fillColor = self._passiveColor
             self._updateShape()
@@ -3009,16 +3797,55 @@ class kList(kShape):
         self.name = "kList"
 
         self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", [width, height])
-        self.getList, self.setList = kVecN(self, "list", the_list)
+        self.getList, self.setList = kVecN(self, "list", list([0 for value in the_list]))
 
-    def getSize(self): pass 
-    def setSize(self, *size): pass 
-    def getWidth(self): pass 
-    def setWidth(self, width): pass
-    def getHeight(self): pass
-    def setHeight(self, height): pass 
-    def getList(self): pass 
-    def setList(self, the_list): pass
+        if shape == None:
+            self.setList(the_list)
+
+    def getWidth(self): 
+        """
+            returns the element width
+        """
+        pass    
+    def setWidth(self, width): 
+        """
+            set the element width
+        """
+        pass
+    def getHeight(self): 
+        """
+            returns the element height
+        """
+        pass
+    def setHeight(self, height): 
+        """
+            set the element height
+        """
+        pass
+    def getSize(self): 
+        """
+            returns the element size as a list [width,height]
+        """
+        pass
+    def setSize(self, *size): 
+        """
+            set the element width and height
+
+            **examples**
+            - element.setSize(100,200)
+            - element.setSize([100,200]) *as a list*
+        """
+        pass
+    def getList(self): 
+        """
+            returns the list
+        """
+        pass 
+    def setList(self, the_list): 
+        """
+            sets the list
+        """
+        pass
 
     def _generateVBO(self):
         self._triangles = copy.deepcopy(self._vertices)
@@ -3078,14 +3905,16 @@ class kList(kShape):
 
         the_max = max(self.list)
         the_min = min(self.list)
-
-        factor = self._size[1]/(the_max + abs(the_min))
+        if the_max == the_min:
+            factor = 1
+        else:
+            factor = self._size[1]/(the_max - the_min)
 
         vertices = []
 
         for i in range(len(self._list)):
             dy = self._list[i]*factor
-            rect = self._generateRect(x,y+abs(the_min*factor),dx,dy)
+            rect = self._generateRect(x,y - the_min*factor ,dx,dy)
             x += dx
             if width >= threshold:
                 x += 1
@@ -3578,34 +4407,49 @@ class kMainWindow(QOpenGLWidget):
         pos = self.translateMousePos([pos.x(), pos.y()])
 
         for ui_element in ui_buffer:
-            if ui_element._onClick and ui_element.contains(*pos):
-                ui_element._onClick(*pos, button_text)
+            if ui_element._onMousePress and ui_element.contains(*pos):
+                kstore.immediate = True
+                ui_element._onMousePress(*pos, button_text)
+                kstore.immediate = False 
 
         for shape in shape_buffer:
-            if shape._onClick and shape.contains(*pos):
-                shape._onClick(*pos, button_text)
+            if shape._onMousePress and shape.contains(*pos):
+                kstore.immediate = True
+                shape._onMousePress(*pos, button_text)
+                kstore.immediate = False 
 
         self.button_store.add(button_text)
         for handler in on_mouse_pressed_handlers:
+            kstore.immediate = True
             handler[0](*pos, button_text)
+            kstore.immediate = False
 
     def mouseReleaseEvent(self, event):
         button = event.button()
         button_text = self.getButtonText(button)
         pos = event.pos()
         pos = self.translateMousePos([pos.x(), pos.y()])
-                
+        x = pos[0]
+        y = pos[1]
+
         for shape in shape_buffer:
-            if shape._onRelease:
-                shape._onRelease(*pos, button_text)
+            if shape._onMouseRelease:
+               
+                kstore.immediate = True
+                shape._onMouseRelease(x, y, button_text)
+                kstore.immediate = False 
 
         for ui_element in ui_buffer:
-            if ui_element._onRelease:
-                ui_element._onRelease(*pos, button_text)
+            if ui_element._onMouseRelease:
+                kstore.immediate = True
+                ui_element._onMouseRelease(x, y, button_text)
+                kstore.immediate = False 
 
         self.button_store.remove(button_text)
         for handler in on_mouse_pressed_handlers:
-            handler[0](*pos, button_text)
+            kstore.immediate = True
+            handler[0](x, y, button_text)
+            kstore.immediate = False 
 
     def translateMousePos(self, pos):
         x = pos[0]
@@ -3615,6 +4459,8 @@ class kMainWindow(QOpenGLWidget):
     def mouseMoveEvent(self, event):    
         pos = event.pos()
         pos = self.translateMousePos([pos.x(), pos.y()])
+        x = pos[0]
+        y = pos[1]
         self.mouse_pos = pos 
         
         for ui_element in ui_buffer:
@@ -3626,11 +4472,15 @@ class kMainWindow(QOpenGLWidget):
             if contains and not ui_element._mouse_over:
                 ui_element._mouse_over = True 
                 if ui_element._onMouseEnter:
-                    ui_element._onMouseEnter()
+                    kstore.immediate = True
+                    ui_element._onMouseEnter(x,y)
+                    kstore.immediate = False
             elif not contains and ui_element._mouse_over:
                 ui_element._mouse_over = False 
                 if ui_element._onMouseExit:
-                    ui_element._onMouseExit()
+                    kstore.immediate = True
+                    ui_element._onMouseExit(x,y)
+                    kstore.immediate = False
 
         for shape in shape_buffer:
             if not shape._onMouseEnter and not shape._onMouseExit:
@@ -3639,15 +4489,21 @@ class kMainWindow(QOpenGLWidget):
             contains = shape.contains(*pos)
             if contains and not shape._mouse_over:
                 shape._mouse_over = True 
-                if shape._onMouseEnter:
-                    shape._onMouseEnter()
+                if shape._onMouseEnter is not None:
+                    kstore.immediate = True
+                    shape._onMouseEnter(x,y)
+                    kstore.immediate = False
             elif not contains and shape._mouse_over:
                 shape._mouse_over = False 
-                if shape._onMouseExit:
-                    shape._onMouseExit()
+                if shape._onMouseExit is not None:
+                    kstore.immediate = True
+                    shape._onMouseExit(x,y)
+                    kstore.immediate = False
 
         for handler in on_mouse_moved_handlers:
-            handler[0](*pos)
+            kstore.immediate = True
+            handler[0](x,y)
+            kstore.immediate = False
 
     def isButtonPressed(self, button):
         return button in self.button_store
@@ -3768,7 +4624,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['createWindow', 'showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'run', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPressed', 'removeOnKeyPressed', 'onKeyReleased', 'removeOnKeyReleased', 'onMousePressed', 'removeOnMousePressed', 'onMouseReleased', 'removeOnMouseReleased', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
+__all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'getInput', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -3830,7 +4686,7 @@ def setWindowWidth(width):
 
 def getWindowWidth():
     """
-        get window widht (x) in pixel
+        get window width (x) in pixel
     """
     return kstore.window.width() 
 
@@ -3904,7 +4760,7 @@ def run():
     """
     action_queue.add(kMessage(" > end drawing"))
     kstore.elapsed_timer.start()
-    sys.exit(kstore.app.exec_())
+    os._exit(kstore.app.exec_())
 
 def drawEllipse(a, b):
     """
@@ -4150,7 +5006,7 @@ def setPos(*point):
         - x from left to right 
         - y from bottom to top 
 
-        **example**
+        **examples**
         - setPos(400,400)
         - setPos([400, 400]) *as a list*
     """
@@ -4192,7 +5048,7 @@ def getY():
 
 def move(*distance):
     """
-        move the drawing cursor a certain position in x and y direction 
+        move the drawing cursor a certain distance in x and y direction 
 
         **examples**
         - move(100, 400)
@@ -4274,7 +5130,7 @@ def rotate(angle):
 
 def setRot(angle):
     """
-        set rotation angle in degrees 
+        set the drawing cursor rotation angle in degrees 
         
         - 0 degrees points to the right
         - positive angles: clockwise
@@ -4288,7 +5144,7 @@ def setRot(angle):
 
 def getRot():
     """
-        get current rotation angle in degrees
+        get current drawing cursor rotation angle in degrees
 
         - 0 degrees points to the right
         - positive angles: clockwise
@@ -4302,7 +5158,7 @@ def setLine(value):
 
         **examples**
         - setLine(True)
-        - setLine(False)
+        - setFill(False)
     """
     kstore.line = value 
 
@@ -4318,7 +5174,7 @@ def setFill(value):
 
         **examples**
         - setFill(True)
-        - setFill(False)
+        - setLine(False)
     """
     kstore.fill = value 
 
@@ -4327,6 +5183,12 @@ def getFill():
         check, if the shapes are drawn with filling (returns *True* or *False*)
     """
     return kstore.fill 
+
+def getDefaultColor():
+    """
+        returns the default color as [r,g,b,a]
+    """
+    return [255,200,50, 255]
 
 def setColorMixing(mixer):
     """
@@ -4461,7 +5323,7 @@ def getBackgroundColor():
 
 def setLineWidth(value):
     """
-        set line width (for borders and lines) in pixel
+        set the line width (for borders and lines) in pixel
 
         **example**
         - setLineWidth(2)
@@ -4549,7 +5411,7 @@ on_mouse_pressed_handlers = []
 on_mouse_released_handlers = []
 on_mouse_moved_handlers = []
 
-def onKeyPressed(handler_function, key=None):
+def onKeyPress(handler_function, key=None):
     """
         executes the handler_function(key) if a the key is pressed
         
@@ -4558,8 +5420,8 @@ def onKeyPressed(handler_function, key=None):
 
         **examples**
 
-        onKeyPressed(print) *# executes on every key press*
-        onKeyPressed(print, "a") *# only executes if a was pressed*
+        onKeyPress(print) *# executes on every key press*
+        onKeyPress(print, "a") *# only executes if a was pressed*
     """
     def submit(the_key):
         kstore.immediate = True
@@ -4571,7 +5433,7 @@ def onKeyPressed(handler_function, key=None):
 
     on_key_pressed_handlers.append((submit, key, handler_function))
 
-def removeOnKeyPressed(handler_function):
+def removeOnKeyPress(handler_function):
     """
         removes the key press handler
     """
@@ -4583,7 +5445,7 @@ def removeOnKeyPressed(handler_function):
         else:
             i += 1
 
-def onKeyReleased(handler_function, key=None):
+def onKeyRelease(handler_function, key=None):
     """
         executes the handler_function(key) if a the key is released
         
@@ -4592,8 +5454,8 @@ def onKeyReleased(handler_function, key=None):
 
         **examples**
 
-        onKeyReleased(print) *# executes on every key release*
-        onKeyReleased(print, "a") *# only executes if a was released*
+        onKeyRelease(print) *# executes on every key release*
+        onKeyRelease(print, "a") *# only executes if a was released*
     """
     def submit(the_key):
         kstore.immediate = True
@@ -4608,7 +5470,7 @@ def onKeyReleased(handler_function, key=None):
     return submit
 
 
-def removeOnKeyReleased(handler_function):
+def removeOnKeyRelease(handler_function):
     """
         removes the key release handler
     """
@@ -4621,7 +5483,7 @@ def removeOnKeyReleased(handler_function):
             i += 1
 
     
-def onMousePressed(handler_function, button=None):
+def onMousePress(handler_function, button=None):
     """
         executes the handler_function(key) if a mouse button is pressed
         
@@ -4634,8 +5496,8 @@ def onMousePressed(handler_function, button=None):
         def button_press(x,y,button):
             print(x, y, button)
 
-        onButtonPressed(button_press) *# executes on every button press*
-        onButtonPressed(button_press, "left") *# only executes if the left button was pressed*
+        onMousePress(button_press) *# executes on every button press*
+        onMousePress(button_press, "left") *# only executes if the left button was pressed*
     """
     def submit(x, y, the_button):
         kstore.immediate = True
@@ -4647,7 +5509,7 @@ def onMousePressed(handler_function, button=None):
 
     on_mouse_pressed_handlers.append((submit, button , handler_function))
 
-def removeOnMousePressed(handler_function):
+def removeOnMousePress(handler_function):
     """
         removes the key press handler
     """
@@ -4660,7 +5522,7 @@ def removeOnMousePressed(handler_function):
             i += 1
 
     
-def onMouseReleased(handler_function, button=None):
+def onMouseRelease(handler_function, button=None):
     """
         executes the handler_function(key) if a mouse button is released
         
@@ -4673,8 +5535,8 @@ def onMouseReleased(handler_function, button=None):
         def button_release(x,y,button):
             print(x, y, button)
 
-        onButtonReleased(button_release) *# executes on every button release*
-        onButtonReleased(button_release, "left") *# only executes if the left button was released*
+        onMouseRelease(button_release) *# executes on every button release*
+        onMouseRelease(button_release, "left") *# only executes if the left button was released*
     """
     def submit(x, y, the_button):
         kstore.immediate = True 
@@ -4687,7 +5549,7 @@ def onMouseReleased(handler_function, button=None):
     on_mouse_released_handlers.append((submit, button, handler_function))
     return submit
 
-def removeOnMouseReleased(handler_function):
+def removeOnMouseRelease(handler_function):
     """
         removes the key press handler
     """
@@ -4774,7 +5636,7 @@ def drawInput(label="", handler=None):
 
         **example 1**
 
-        input = drawInput("name", print) # prints the input content, if return isp ressed
+        input = drawInput("name", print) # prints the input content, if return is pressed
 
         **example 2**
         
@@ -5035,17 +5897,19 @@ def drawList(the_list, width, height):
     the_list._updateShape()
     the_list._draw()
     return the_list
-    
+
+# ==================================== INITIALISATION ===========================================
+
+createWindow()
+
+atexit.register(run)
+
 # ==================================== TEST CODE ===========================================
 
 if __name__ == "__main__":
     print(" > create your own python script")
     print("""
     from ksbanim import *
-    
-    createWindow()
-          
+              
     # your drawing code hier 
-          
-    run()
 """)
