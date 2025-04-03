@@ -12,6 +12,7 @@ import pkg_resources, requests
 from shapely.geometry import Polygon
 import triangle as tr
 import colorsys
+import numpy as np
 
 def is_version_outdated(current_version, latest_version):
     current_parts = list(map(int, current_version.split('.')))
@@ -61,12 +62,12 @@ def interpolate(begin_value, end_value, fraction):
             return [0] * length  # or any default value you prefer
         return lst + [lst[-1]] * (length - len(lst))
 
-    if (isinstance(begin_value, list) or isinstance(begin_value, tuple)) and (isinstance(end_value, tuple) or isinstance(end_value, list)):
+    if (isinstance(begin_value, list) or isinstance(begin_value, tuple) or isinstance(begin_value, np.ndarray)) and (isinstance(end_value, tuple) or isinstance(end_value, list) or isinstance(end_value, np.ndarray)):
         max_length = max(len(begin_value), len(end_value))
         begin_value = pad_list(begin_value, max_length)
         end_value = pad_list(end_value, max_length)
         
-        if isinstance(begin_value[0], list) or isinstance(begin_value[0], tuple):
+        if isinstance(begin_value[0], list) or isinstance(begin_value[0], tuple) or isinstance(begin_value[0], np.ndarray):
             return [interpolate(begin_value[i], end_value[i], fraction) for i in range(max_length)]
         else:
             return [INTERPOLATION_FUNCTION(begin_value[i], end_value[i], fraction) for i in range(max_length)]
@@ -1045,18 +1046,18 @@ def toFloatList(args):
     cast = float
     
     def convert_to_float(item):
-        if isinstance(item, (list, tuple)):
+        if isinstance(item, (list, tuple, np.ndarray)):
             return [convert_to_float(sub_item) for sub_item in item]
         else:
             return cast(item)
     
-    if len(args) == 1 and isinstance(args[0], (list, tuple)):
+    if len(args) == 1 and isinstance(args[0], (list, tuple, np.ndarray)):
         return convert_to_float(args[0])
     else:
         return [convert_to_float(a) for a in args]
     
 def toColor(args):
-    if len(args) == 1 and isinstance(args[0], (list, tuple)):
+    if len(args) == 1 and isinstance(args[0], (list, tuple, np.ndarray)):
         if len(args[0]) == 3:
             r, g, b = args[0]
             a = 255
@@ -4624,7 +4625,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'getInput', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
+__all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -4826,7 +4827,7 @@ def drawLine(*size):
         
             drawLine(100, 300)
     """
-    if not isinstance(size[0], (list,tuple)) and len(size) == 1:
+    if not isinstance(size[0], (list,tuple, np.ndarray)) and len(size) == 1:
         size = [size[0], 0]
 
     size = toFloatList(size)
@@ -4869,7 +4870,7 @@ def drawVector(*size):
         
             drawVector(100, 300)
     """
-    if not isinstance(size[0], (list,tuple)) and len(size) == 1:
+    if not isinstance(size[0], (list,tuple, np.ndarray)) and len(size) == 1:
         size = [size[0], 0]
 
     size = toFloatList(size)
