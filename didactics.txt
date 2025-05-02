@@ -1,0 +1,46 @@
+befehle aufrufen mit penDown() forward() rotate() setPos()
+
+zeichnen mit turtle
+
+for-schleifen
+
+drawText und strings
+
+funktionen, buttons (forward button), zeichne dreieck button und funktionen
+
+OPTIONAL TASTATURINPUT UND MAUSINPUT
+
+Prüfung TURTLE
+===========================================================================
+
+binärzahlen und RGB
+
+===========================================================================
+zeichnen mit kreisen und rechtecken inclusive rotation und arcs
+
+setColor mit RGB
+
+Objekte mit animationen (es gibt funktionen die ein objekt zurückgeben, je nach modul, je nach funktion). diese Objekte können wiederum funktionen besitzen, welche etwas mit dem objekt tun) mit set
+
+Objekteigenschaften abfragen mit get
+
+Objekte rotieren
+
+zufallszahlen
+
+verzweigungen mit zufälligen kreisen if-elif-else
+
+buttons mit if-elif-else (schrittweise animieren, z. bsp. rechteck abfahren)
+
+OPTIONAL 
+============================================================================
+
+Kryptologie
+
+============================================================================
+
+listen
+
+============================================================================
+
+user interfaces mit INPUT

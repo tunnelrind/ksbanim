@@ -278,6 +278,7 @@ class kLoop:
             self.begin_time = kstore.milliseconds
         self.loop_function = loop_function 
         self.milliseconds = milliseconds
+        self.old_time = kstore.elapsed_timer.elapsed()
 
     def process(self, the_time):
         if self.begin_time <= the_time:
@@ -287,10 +288,14 @@ class kLoop:
                 self.begin_time = the_time - the_time%self.milliseconds + self.milliseconds
             old_milliseconds = kstore.milliseconds
             kstore.milliseconds = self.begin_time
-            self.loop_function()
+            new_time = kstore.elapsed_timer.elapsed()
+            dt = self.old_time - new_time
+            self.loop_function(dt)
+            self.old_time = new_time
             kstore.milliseconds = old_milliseconds
             return 1
         else:
+            self.old_time = kstore.elapsed_timer.elapsed()
             return 0
 
 class kMessage:
@@ -5376,10 +5381,11 @@ def onTick(tick_function, milliseconds=20):
         - milliseconds must be at least 20
         - if the drawing operation can't keep up, the real tick might be larger
         - it is recommended to disable animations with setTime(0)
+        - the tick_function must have an argument dt, which is the time it took to draw the last frame
 
         **example**
 
-        def loop():
+        def loop(dt):
             move(1,1)
             drawCircle(5)
 
