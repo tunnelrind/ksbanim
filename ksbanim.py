@@ -1392,7 +1392,7 @@ class kShape(ABC):
         distance = toFloatList(distance)
         self.pos[0] += distance[0]
         self.pos[1] += distance[1]
-        action_queue.add(kInterpolator(self.pos, self._getPos, self._setPos))
+        action_queue.add(kInterpolator(copy.copy(self.pos), self._getPos, self._setPos))
 
     def forward(self, distance):
         """
@@ -1401,7 +1401,7 @@ class kShape(ABC):
         angle = self.rot/180*math.pi
         self.pos[0] += math.cos(angle)*distance
         self.pos[1] += math.sin(angle)*distance 
-        action_queue.add(kInterpolator(self.pos, self._getPos, self._setPos))
+        action_queue.add(kInterpolator(copy.copy(self.pos), self._getPos, self._setPos))
 
     def backward(self, distance):
         """
