@@ -289,7 +289,7 @@ class kLoop:
             old_milliseconds = kstore.milliseconds
             kstore.milliseconds = self.begin_time
             new_time = kstore.elapsed_timer.elapsed()
-            dt = self.old_time - new_time
+            dt = new_time - self.old_time
             self.loop_function(dt)
             self.old_time = new_time
             kstore.milliseconds = old_milliseconds
@@ -4630,7 +4630,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
+__all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'disableAnim', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -4986,6 +4986,14 @@ def setTime(milliseconds):
     """
     setAnim(milliseconds)
     setDelay(milliseconds)
+
+def disableAnim():
+    """
+        disables all animations
+
+        shorthand for setTime(0)
+    """
+    setTime(0)
 
 def getAnim():
     """
@@ -5374,14 +5382,13 @@ def getFps(fps):
 
     return 1000/kstore.dt
 
-def onTick(tick_function, milliseconds=20):
+def onTick(tick_function, milliseconds=0):
     """
-        executes tick_function at a regular interval (milliseconds)
+        executes tick_function at a regular interval (milliseconds, ms)
 
-        - milliseconds must be at least 20
+        - the tick_function must have an argument dt, which is the time it took to draw the last frame in ms
         - if the drawing operation can't keep up, the real tick might be larger
         - it is recommended to disable animations with setTime(0)
-        - the tick_function must have an argument dt, which is the time it took to draw the last frame
 
         **example**
 
@@ -5390,12 +5397,13 @@ def onTick(tick_function, milliseconds=20):
             drawCircle(5)
 
         setTime(0)
-        onTick(loop, 10) *# draws one circle every 100 ms*
+
+        onTick(loop, 100) *# draws one circle every 100 ms*
     """
 
     kstore.immediate = True
     kstore.scaleAnim(0)
-    action_queue.add(kLoop(tick_function, max(20, milliseconds)))
+    action_queue.add(kLoop(tick_function, max(0, milliseconds)))
     kstore.unscaleAnim()
     kstore.immediate = False
     
