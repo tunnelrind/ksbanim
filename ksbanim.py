@@ -1389,6 +1389,12 @@ class kShape(ABC):
             - circle.move(100, 400)
             - circle.move([100,400]) *as a list*
         """
+        if len(distance) == 1 and isinstance(distance[0], list) or isinstance(distance[0], tuple) or isinstance(distance[0], np.ndarray):
+            pass
+        elif len(distance) == 2:
+            pass 
+        else:
+            raise(ValueError("two numbers excpected"))
         distance = toFloatList(distance)
         self.pos[0] += distance[0]
         self.pos[1] += distance[1]
@@ -4516,15 +4522,39 @@ class kMainWindow(QOpenGLWidget):
     
     def getMousePos(self):
         return self.mouse_pos
-    
+
+quit = False 
+
+
+RESET = "\033[0m"
+BOLD = "\033[1m"
+ITALIC = "\033[3m"
+RED = "\033[31m"
+
 def exception_hook(exctype, value, tb):
+    global quit 
+
+    num = 0
     tb_info = traceback.extract_tb(tb)
+
+    print("")
+    print(f"{BOLD}{exctype.__name__}: {value}{RESET}")
+
     for frame in tb_info:
         filename, lineno, funcname, text = frame
         lineno_str = f"{lineno}".ljust(10)
         funcname_str = f"{funcname}".ljust(20)
-        print(f"line {lineno_str} {funcname_str} >>> {text}")    
-    print(f"Exception: {exctype}, Value: {value}")
+        if funcname == '<module>':
+            filename_short = os.path.basename(filename)
+            funcname_str = f"{filename_short}".ljust(20)
+        if num == 0:
+            print(f"{RED}line {lineno_str} {funcname_str} >>> {text}{RESET}")
+        else:    
+            print(f"line {lineno_str} {funcname_str} >>> {text}")
+        num += 1
+
+    print("", flush=True)
+    quit = True
     sys.exit(1)
 
 # ==================================== LIST SAMPLES ===========================================
@@ -4644,6 +4674,9 @@ def createWindow(width=1000, height=1000):
     - createWindow()
     - createWindow(800,800)
     """
+    if quit:
+        return 
+    
     sys.excepthook = exception_hook
 
     kstore.app = QApplication(sys.argv)
@@ -4764,6 +4797,9 @@ def run():
     """
         needs to be the last function call of your script
     """
+    if quit:
+        return 
+    
     action_queue.add(kMessage(" > end drawing"))
     kstore.elapsed_timer.start()
     os._exit(kstore.app.exec_())
@@ -5024,6 +5060,13 @@ def setPos(*point):
         - setPos(400,400)
         - setPos([400, 400]) *as a list*
     """
+    if len(point) == 1 and isinstance(point[0], list) or isinstance(point[0], tuple) or isinstance(point[0], np.ndarray):
+        pass
+    elif len(point) == 2:
+        pass 
+    else:
+        raise(ValueError("two numbers excpected"))
+    
     pos = toFloatList(point)
     kstore.setPos(pos)
 
@@ -5068,6 +5111,13 @@ def move(*distance):
         - move(100, 400)
         - move([100,400]) *as a list*
     """
+    if len(distance) == 1 and isinstance(distance[0], list) or isinstance(distance[0], tuple) or isinstance(distance[0], np.ndarray):
+        pass
+    elif len(distance) == 2:
+        pass 
+    else:
+        raise(ValueError("two numbers excpected"))
+
     delta = toFloatList(distance)
     pos = kstore.getPos()
     pos[0] += delta[0]
@@ -5685,7 +5735,7 @@ def drawLabel(name, text):
 
 def drawText(text):
     """
-        draws an single-line text (without a border)
+        draws an single-line text
 
         **example**
 
