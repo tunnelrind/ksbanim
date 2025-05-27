@@ -15,19 +15,29 @@ import triangle as tr
 import colorsys
 import numpy as np
 
+import inspect
+
+def is_running_under_pdoc():
+    for frame in inspect.stack():
+        if 'pdoc' in frame.filename:
+            return True
+    return False
+
 def is_version_outdated(current_version, latest_version):
     current_parts = list(map(int, current_version.split('.')))
     latest_parts = list(map(int, latest_version.split('.')))
     return current_parts < latest_parts
 
 def check_for_updates():
+    if is_running_under_pdoc():
+        return 
+    
     package_name = 'ksbanim'
     try:
         current_version = version(package_name)
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=2)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
-
         
         if is_version_outdated(current_version, latest_version):
             if input("install newest version of ksbanim? (y/n)\n") == "y":    
@@ -5996,14 +6006,6 @@ def drawList(the_list, width, height):
 
 # ==================================== INITIALISATION ===========================================
 
-
-import inspect
-
-def is_running_under_pdoc():
-    for frame in inspect.stack():
-        if 'pdoc' in frame.filename:
-            return True
-    return False
 
 if not is_running_under_pdoc():
     createWindow()
