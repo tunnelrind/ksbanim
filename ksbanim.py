@@ -1,6 +1,3 @@
-if __name__ == '__main__':
-    exit()
-    
 import sys, subprocess
 import math
 import traceback 
@@ -5999,9 +5996,18 @@ def drawList(the_list, width, height):
 
 # ==================================== INITIALISATION ===========================================
 
-createWindow()
 
-atexit.register(run)
+import inspect
+
+def is_running_under_pdoc():
+    for frame in inspect.stack():
+        if 'pdoc' in frame.filename:
+            return True
+    return False
+
+if not is_running_under_pdoc():
+    createWindow()
+    atexit.register(run)
 
 # ==================================== TEST CODE ===========================================
 
