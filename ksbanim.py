@@ -1,3 +1,6 @@
+if __name__ == '__main__':
+    exit()
+    
 import sys, subprocess
 import math
 import traceback 
