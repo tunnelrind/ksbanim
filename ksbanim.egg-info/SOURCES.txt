@@ -1,7 +1,0 @@
-ksbanim.py
-setup.py
-ksbanim.egg-info/PKG-INFO
-ksbanim.egg-info/SOURCES.txt
-ksbanim.egg-info/dependency_links.txt
-ksbanim.egg-info/requires.txt
-ksbanim.egg-info/top_level.txt

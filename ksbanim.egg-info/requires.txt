@@ -1,7 +1,0 @@
-PyQt5
-PyOpenGL
-imageio[ffmpeg]
-requests
-triangle
-shapely
-setuptools
