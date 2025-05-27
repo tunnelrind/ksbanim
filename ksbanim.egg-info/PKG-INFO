@@ -1,6 +1,6 @@
 Metadata-Version: 2.2
 Name: ksbanim
-Version: 1.1.19
+Version: 1.1.20
 Summary: A module for animation based on PyQt5, OpenGL, and imageio[ffmpeg]
 Home-page: https://github.com/tunnelrind/ksbanim
 Author: Biasini Dario
