@@ -7,8 +7,9 @@ import os
 import struct
 import copy 
 import atexit 
-from abc import ABC, abstractmethod
-import pkg_resources, requests
+from abc import ABC, abstractmethod 
+from importlib.metadata import version, PackageNotFoundError
+import requests
 from shapely.geometry import Polygon
 import triangle as tr
 import colorsys
@@ -22,17 +23,19 @@ def is_version_outdated(current_version, latest_version):
 def check_for_updates():
     package_name = 'ksbanim'
     try:
-        current_version = pkg_resources.get_distribution(package_name).version
-        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=0.5)
+        current_version = version(package_name)
+        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=2)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
+
         
         if is_version_outdated(current_version, latest_version):
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
-            print("-"*30)
-            print(f"{package_name} has been updated to version {latest_version}. Please restart your python program.")
-            print("-"*30)
-            exit()
+            if input("install newest version of ksbanim? (y/n)\n") == "y":    
+                subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
+                print("-"*30)
+                print(f"{package_name} has been updated to version {latest_version}. Please restart your python program.")
+                print("-"*30)
+                exit()
             
     except requests.RequestException:
         pass  # Ignore network errors and do nothing
@@ -429,12 +432,14 @@ class kStore:
             self.rot = old_rot
             self.pos = new_pos
             kstore.milliseconds = temp
-            self.cursor.setPos(self.pos)
+            if self.cursor is not None:
+                self.cursor.setPos(self.pos)
             kstore.milliseconds = temp + max(kstore.animation, kstore.delay)
         else:
             self.pos = toFloatList(point)
             self.scaleAnim(0)
-            self.cursor.setPos(self.pos)
+            if self.cursor is not None:
+                self.cursor.setPos(self.pos)
             self.unscaleAnim()
         return line 
         
@@ -455,10 +460,10 @@ class kStore:
     
     def setRot(self, angle):
         self.rot = angle
-        if self.pendown:
+        if self.pendown and self.cursor is not None:
             self.cursor.setRot(angle)
             kstore.milliseconds += max(kstore.delay, kstore.animation) - kstore.delay
-        else:
+        elif self.cursor is not None:
             self.scaleAnim(0)
             self.cursor.setRot(angle)
             self.unscaleAnim()
@@ -474,7 +479,8 @@ class kStore:
         self.lineColor = color
         self.fillColor = color
         self.scaleAnim(0)
-        self.cursor.setColor(color)
+        if self.cursor is not None:
+            self.cursor.setColor(color)
         self.unscaleAnim()
 
     def getFillColor(self):
@@ -484,7 +490,8 @@ class kStore:
         color = toColor(rgba)
         self.fillColor = color
         self.scaleAnim(0)
-        self.cursor.setFillColor(color)
+        if self.cursor is not None:
+            self.cursor.setFillColor(color)
         self.unscaleAnim()
 
     def getFontColor(self):
@@ -500,7 +507,8 @@ class kStore:
         color = toColor(rgba)
         self.lineColor = color
         self.scaleAnim(0)
-        self.cursor.setLineColor(color)
+        if self.cursor is not None:
+            self.cursor.setLineColor(color)
         self.unscaleAnim()
 
     def getFontSize(self):
@@ -4057,12 +4065,14 @@ class kMainWindow(QOpenGLWidget):
         self.setWindowTitle("ksbanim drawing surface")
         self.setWindowFlags(Qt.FramelessWindowHint)
 
-        self.initFps()
+        self.fps_buffer = []
 
+        self.fps_label = None 
+        self.closeButton = None 
+        
         self.scale_factor = kstore.scale_factor 
         
         kstore.elapsed_timer = QElapsedTimer()
-        kstore.grid = kGrid(self, kstore.size[0], kstore.size[1], kstore.scale_factor)
 
         self.record = False 
         self.frames = []
@@ -4071,6 +4081,26 @@ class kMainWindow(QOpenGLWidget):
         self.button_store = set()
         self.setMouseTracking(True)
         self.mouse_pos = [0,0]
+
+        format = QSurfaceFormat()
+        format.setSamples(4)
+        format.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
+        format.setAlphaBufferSize(8)  # Request an 8-bit alpha channel
+        self.setFormat(format)
+
+        self.initLater()
+    
+    
+        QTimer.singleShot(100, self.bringToFront)
+
+    def bringToFront(self):
+        self.raise_()
+        self.activateWindow()
+        self.setFocus()
+
+
+    def initLater(self):
+        kstore.grid = kGrid(self, kstore.size[0], kstore.size[1], kstore.scale_factor)
 
         kstore.cursor = kCursor()
         kstore.cursor._draw()
@@ -4090,24 +4120,18 @@ class kMainWindow(QOpenGLWidget):
             }
         """)        
         self.closeButton.clicked.connect(self.close)
+        self.closeButton.move(kstore.size[0]-30, 0)
         self.closeButton.setFocusPolicy(Qt.NoFocus)
         self.closeButton.show()
 
-        self.setSize(kstore.size[0], kstore.size[1], kstore.scale_factor)
+        self.initFps()
 
-        format = QSurfaceFormat()
-        format.setSamples(4)
-        format.setAlphaBufferSize(8)  # Request an 8-bit alpha channel
-        self.setFormat(format)
-
-        self.center()
-    
     def initFps(self):
-        self.fps_buffer = []
         self.fps_label = QLabel(self)
-        self.fps_label.setStyleSheet("color: white; background-color: black; font-size: 16px;")
-        self.fps_label.resize(100, 30)
+        self.fps_label.setStyleSheet("color: white; background-color: none; font-size: 16px;")
+        self.fps_label.resize(50, 30)
         self.fps_label.setText("fps --")
+        self.fps_label.move(kstore.size[0] - 100, 0)
         self.fps_label.show()
 
     def updateFps(self):
@@ -4119,7 +4143,8 @@ class kMainWindow(QOpenGLWidget):
             
             fps = 1000*len(self.fps_buffer)/(self.fps_buffer[-1] - self.fps_buffer[0])
 
-            self.fps_label.setText(f"fps {fps:.0f}")
+            if self.fps_label is not None:
+                self.fps_label.setText(f"fps {fps:.0f}")
         else:
             self.fps_buffer.append(current_time)
 
@@ -4173,7 +4198,7 @@ class kMainWindow(QOpenGLWidget):
             if shape._drawGL is not None:
                 shape._drawGL()
 
-        if kstore.cursor:
+        if kstore.cursor is not None:
             kstore.cursor._drawGL()
 
     
@@ -4212,8 +4237,12 @@ class kMainWindow(QOpenGLWidget):
         self.center()
         self.pixmap = QPixmap(int(kstore.size[0]), int(kstore.size[1]))
         self.pixmap.fill(QColor(*kstore.backgroundColor))
-        self.fps_label.move(width - 100, 0)
-        self.closeButton.move(width-30, 0)
+
+        if self.fps_label is not None:
+            self.fps_label.move(width - 100, 0)
+
+        if self.closeButton is not None:
+            self.closeButton.move(width-30, 0)
 
         if kstore.grid is not None:
             kstore.grid.resize(width, height, scale_factor)
@@ -4227,7 +4256,7 @@ class kMainWindow(QOpenGLWidget):
         self.move(qr.topLeft())
 
     def drawGrid(self, painter):
-        if kstore.show_grid:              
+        if kstore.show_grid and kstore.grid is not None:              
             painter.drawPixmap(0, 0, kstore.grid._pixmap)
 
     def paintEvent(self, event):
@@ -4800,7 +4829,7 @@ def run():
     if quit:
         return 
     
-    action_queue.add(kMessage(" > end drawing"))
+    action_queue.add(kMessage(" > end drawing (close with ESC or use the red X button on the top right)"))
     kstore.elapsed_timer.start()
     os._exit(kstore.app.exec_())
 
@@ -5915,13 +5944,15 @@ def showCursor():
     """
         shows the drawing cursor
     """
-    kstore.cursor.show()
+    if kstore.cursor is not None:
+        kstore.cursor.show()
 
 def hideCursor():
     """
         hides the drawing cursor
     """
-    kstore.cursor.hide()
+    if kstore.cursor is not None:
+        kstore.cursor.hide()
 
 def _clear():
     i = 0

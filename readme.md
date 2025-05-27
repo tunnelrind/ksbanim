@@ -20,15 +20,11 @@ Based on OpenGL, PyQt5 and imageio
 
 from ksbanim import *
 
-createWindow()
-
 setPos(500,500)
 
 setRot(45)
 
 drawCircle(100)
-
-run()
 
 ## GitHub Documentation
 
