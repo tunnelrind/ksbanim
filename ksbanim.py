@@ -17,6 +17,13 @@ import numpy as np
 
 import inspect
 
+
+
+RESET = "\033[0m"
+BOLD = "\033[1m"
+ITALIC = "\033[3m"
+RED = "\033[31m"
+
 def is_running_under_pdoc():
     for frame in inspect.stack():
         if 'pdoc' in frame.filename:
@@ -35,17 +42,20 @@ def check_for_updates():
     package_name = 'ksbanim'
     try:
         current_version = version(package_name)
-        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=2)
+        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=1)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
         
         if is_version_outdated(current_version, latest_version):
-            if input("install newest version of ksbanim? (y/n)\n") == "y":    
-                subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
-                print("-"*30)
-                print(f"{package_name} has been updated to version {latest_version}. Please restart your python program.")
-                print("-"*30)
-                exit()
+            # if input("install newest version of ksbanim? (y/n)\n") == "y":  
+            print("-"*30)
+            print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET)  
+            subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
+            print("-"*30)
+            print(f"{package_name} has been updated to version {latest_version}.")
+            print(BOLD + RED + "Please restart your python program." + RESET)
+            print("-"*30)
+            exit()
             
     except requests.RequestException:
         pass  # Ignore network errors and do nothing
@@ -2334,7 +2344,7 @@ class kImage(kShape):
         except Exception:
             print(f" > Image {file_name} not found in workspace folder {script_path}")
             print(" > exiting program")
-            exit()
+            os._exit(1)
 
         height = int(self.image.shape[0] * (width / self.image.shape[1]))
 
@@ -4421,7 +4431,7 @@ class kMainWindow(QOpenGLWidget):
 
         self.key_store.add(key_text)
         for handler in on_key_pressed_handlers:
-            if handler[1] == key_text:
+            if handler[1] == key_text or handler[1] == None:
                 handler[0](key_text)
 
     def keyReleaseEvent(self, event):
@@ -4433,7 +4443,7 @@ class kMainWindow(QOpenGLWidget):
             self.key_store.remove(key_text)
         
         for handler in on_key_released_handlers:
-            if handler[1] == key_text:
+            if handler[1] == key_text or handler[1] == None:
                 handler[0](key_text)
 
     def isKeyPressed(self, key):
@@ -4564,11 +4574,6 @@ class kMainWindow(QOpenGLWidget):
 
 quit = False 
 
-
-RESET = "\033[0m"
-BOLD = "\033[1m"
-ITALIC = "\033[3m"
-RED = "\033[31m"
 
 def exception_hook(exctype, value, tb):
     global quit 
