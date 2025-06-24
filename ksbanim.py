@@ -17,8 +17,6 @@ import numpy as np
 
 import inspect
 
-
-
 RESET = "\033[0m"
 BOLD = "\033[1m"
 ITALIC = "\033[3m"
@@ -42,19 +40,19 @@ def check_for_updates():
     package_name = 'ksbanim'
     try:
         current_version = version(package_name)
-        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=1)
+        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=0.25)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
         
         if is_version_outdated(current_version, latest_version):
-            # if input("install newest version of ksbanim? (y/n)\n") == "y":  
-            print("-"*30)
-            print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET)  
+            print("="*30)
+            print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET) 
+            print("="*30) 
             subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
-            print("-"*30)
+            print("="*30)
             print(f"{package_name} has been updated to version {latest_version}.")
             print(BOLD + RED + "Please restart your python program." + RESET)
-            print("-"*30)
+            print("="*30)
             exit()
             
     except requests.RequestException:
@@ -409,7 +407,7 @@ class kStore:
         self.app = None 
         self.pixmap = None 
         self.size = [1000, 1000]
-        self.scale_factor = 1
+        self.window_size = [1000,1000]
         self.pos = [500,500]
         self.rot = 0
         self.timer = None 
@@ -1088,6 +1086,20 @@ def toFloatList(args):
         return convert_to_float(args[0])
     else:
         return [convert_to_float(a) for a in args]
+
+def toIntList(args):
+    cast = int
+    
+    def convert_to_int(item):
+        if isinstance(item, (list, tuple, np.ndarray)):
+            return [convert_to_int(sub_item) for sub_item in item]
+        else:
+            return cast(item)
+    
+    if len(args) == 1 and isinstance(args[0], (list, tuple, np.ndarray)):
+        return convert_to_int(args[0])
+    else:
+        return [convert_to_int(a) for a in args]
     
 def toColor(args):
     if len(args) == 1 and isinstance(args[0], (list, tuple, np.ndarray)):
@@ -3984,29 +3996,23 @@ class kList(kShape):
         return (0 <= rotated_x <= self._size[0]) and (0 <= rotated_y <= self._size[1])
         
 class kGrid:
-    def __init__(self, window, width, height, scale_factor):
-        self._size = [int(width*scale_factor),int( height*scale_factor)]
-        self._scale_factor = scale_factor
+    def __init__(self):
         self._label_fontSize = 14
-        self._window = window
         self._xlabels = []
         self._ylabels = []
         self._xlabel = None
         self._ylabel = None
-        self._pixmap = QPixmap(self._size[0], self._size[1])
+        self._pixmap = QPixmap(*kstore.size)
         self._pixmap.fill(Qt.transparent)
 
         self._createLabels()
         self._drawLines()
 
-    def resize(self, width, height, scale_factor):
-        self._scale_factor = scale_factor
-        self._size[0] = int(width*scale_factor)
-        self._size[1] = int(height*scale_factor)
+    def resize(self):
         self.clear()
 
-    def clear(self):
-        self._pixmap = QPixmap(self._size[0], self._size[1])
+    def clear(self): 
+        self._pixmap = QPixmap(kstore.size[0], kstore.size[1])
         self._pixmap.fill(Qt.transparent)
 
         if len(self._xlabels) > 0:
@@ -4032,28 +4038,32 @@ class kGrid:
     def _createLabels(self):
         if not kstore.show_grid:
             return 
-            
-        for x in range(100, int(self._size[0]), 100):
-            label = QLabel(str(x), self._window)
-            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize/self._scale_factor)}px;")
-            label.move(int(x/self._scale_factor)+10, int(self._size[1]/self._scale_factor - 30))
+        
+        scale_factor_x = kstore.size[0]/kstore.window_size[0]
+        scale_factor_y = kstore.size[1]/kstore.window_size[1]
+        scale_factor = (scale_factor_x**2 + scale_factor_y**2)**0.5
+
+        for x in range(100, int(kstore.size[0]), 100):
+            label = QLabel(str(x), kstore.window)
+            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize)}px;")
+            label.move(int(x/scale_factor_x)+10, int(kstore.window_size[1] - 30))
             label.show()
             self._xlabels.append(label)
 
-        for y in range(0, int(self._size[1]), 100):
-            label = QLabel(str(y), self._window)
-            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize/self._scale_factor)}px;")
-            label.move(int(10), int((self._size[1]/self._scale_factor - y/self._scale_factor) - 30))
+        for y in range(0, int(kstore.size[1]), 100):
+            label = QLabel(str(y), kstore.window)
+            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize)}px;")
+            label.move(int(10), int((kstore.window_size[1] - y/scale_factor_y) - 30))
             label.show()
             self._ylabels.append(label)
 
-        self._xlabel = QLabel("x", self._window)
-        self._xlabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize/self._scale_factor)}px;")
-        self._xlabel.move(int((self._size[0]/self._scale_factor - 20)), int((self._size[1]/self._scale_factor - 40) ))
+        self._xlabel = QLabel("x", kstore.window)
+        self._xlabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize)}px;")
+        self._xlabel.move(int((kstore.window_size[0] - 20)), int((kstore.window_size[1] - 40) ))
         self._xlabel.show()
 
-        self._ylabel = QLabel("y", self._window)
-        self._ylabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize/self._scale_factor)}px;")
+        self._ylabel = QLabel("y", kstore.window)
+        self._ylabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize)}px;")
         self._ylabel.move(int(20), 0)
         self._ylabel.show()
 
@@ -4066,11 +4076,11 @@ class kGrid:
         pen.setWidth(1)
         painter.setPen(pen)
 
-        for x in range(100, int(self._size[0]), 100):
-            painter.drawLine(x, 0, x, self._size[1])
+        for x in range(100, int(kstore.size[0]), 100):
+            painter.drawLine(x, 0, x, int(kstore.size[1]))
 
-        for y in range(100, int(self._size[1]), 100):
-            painter.drawLine(0, y, self._size[0], y)
+        for y in range(100, int(kstore.size[1]), 100):
+            painter.drawLine(0, y, int(kstore.size[0]), y)
         painter.end()
     
 # ==================================== MAIN WINDOW CONTROL ===========================================
@@ -4079,7 +4089,7 @@ def debugCallback(*args, **kwargs):
     print('args = {0}, kwargs = {1}'.format(args, kwargs))
 
 class kMainWindow(QOpenGLWidget):
-    def __init__(self):
+    def __init__(self, width, height):
         super().__init__()
         
         self.setWindowTitle("ksbanim drawing surface")
@@ -4089,9 +4099,7 @@ class kMainWindow(QOpenGLWidget):
 
         self.fps_label = None 
         self.closeButton = None 
-        
-        self.scale_factor = kstore.scale_factor 
-        
+                
         kstore.elapsed_timer = QElapsedTimer()
 
         self.record = False 
@@ -4108,10 +4116,9 @@ class kMainWindow(QOpenGLWidget):
         format.setAlphaBufferSize(8)  # Request an 8-bit alpha channel
         self.setFormat(format)
 
-        self.initLater()
-    
-    
+        self.resize()
         QTimer.singleShot(100, self.bringToFront)
+        QTimer.singleShot(100, self.initLater)
 
     def bringToFront(self):
         self.raise_()
@@ -4120,7 +4127,7 @@ class kMainWindow(QOpenGLWidget):
 
 
     def initLater(self):
-        kstore.grid = kGrid(self, kstore.size[0], kstore.size[1], kstore.scale_factor)
+        kstore.grid = kGrid()
 
         kstore.cursor = kCursor()
         kstore.cursor._draw()
@@ -4140,7 +4147,7 @@ class kMainWindow(QOpenGLWidget):
             }
         """)        
         self.closeButton.clicked.connect(self.close)
-        self.closeButton.move(kstore.size[0]-30, 0)
+        self.closeButton.move(int(kstore.window_size[0])-30, 0)
         self.closeButton.setFocusPolicy(Qt.NoFocus)
         self.closeButton.show()
 
@@ -4151,7 +4158,7 @@ class kMainWindow(QOpenGLWidget):
         self.fps_label.setStyleSheet("color: white; background-color: none; font-size: 16px;")
         self.fps_label.resize(50, 30)
         self.fps_label.setText("fps --")
-        self.fps_label.move(kstore.size[0] - 100, 0)
+        self.fps_label.move(int(kstore.window_size[0]) - 100, 0)
         self.fps_label.show()
 
     def updateFps(self):
@@ -4190,7 +4197,7 @@ class kMainWindow(QOpenGLWidget):
             glBlendFunc(GL_SRC_ALPHA, GL_ONE)
         else:
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        self.resizeGL(int(kstore.size[0]//2), int(kstore.size[1]//2))
+
         self.setBackgroundColorGL(kstore.backgroundColor)
 
     def enableDebugOutput(self):
@@ -4221,7 +4228,6 @@ class kMainWindow(QOpenGLWidget):
         if kstore.cursor is not None:
             kstore.cursor._drawGL()
 
-    
     def clearGL(self):
         glClearColor(*kstore.backgroundColor)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -4230,6 +4236,8 @@ class kMainWindow(QOpenGLWidget):
         glTranslated(0, 0, 0)
         
     def resizeGL(self, width, height): 
+        glViewport(0, 0, width, height)
+
         glMatrixMode(GL_PROJECTION)   
         glLoadIdentity()
         glOrtho(0, kstore.size[0], 0, kstore.size[1], -10, 10)
@@ -4242,20 +4250,20 @@ class kMainWindow(QOpenGLWidget):
 
         texture_id = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, texture_id)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, kstore.size[0], kstore.size[1], 0, GL_RGBA, GL_UNSIGNED_BYTE, None)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
 
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_id, 0)
 
-    def setSize(self, width, height, scale_factor):
-        width = int(width)
-        height = int(height)
+    def resize(self):
+        width = int(kstore.window_size[0])
+        height = int(kstore.window_size[1])
 
-        self.resize(width, height)
-        self.setGeometry(0, 0, width,height)        
-        self.center()
-        self.pixmap = QPixmap(int(kstore.size[0]), int(kstore.size[1]))
+        super().resize(width+1, height) 
+        super().resize(width, height) 
+
+        self.pixmap = QPixmap(width,height)
         self.pixmap.fill(QColor(*kstore.backgroundColor))
 
         if self.fps_label is not None:
@@ -4265,7 +4273,7 @@ class kMainWindow(QOpenGLWidget):
             self.closeButton.move(width-30, 0)
 
         if kstore.grid is not None:
-            kstore.grid.resize(width, height, scale_factor)
+            kstore.grid.resize()
 
         self.center()
 
@@ -4296,9 +4304,12 @@ class kMainWindow(QOpenGLWidget):
         glPopAttrib()
         painter.endNativePainting()
 
+        scale_factor_x = kstore.size[0]/kstore.window_size[0]
+        scale_factor_y = kstore.size[1]/kstore.window_size[1]
+
         painter.resetTransform()
         transform = QTransform()
-        transform.scale(1/kstore.scale_factor, 1/kstore.scale_factor)
+        transform.scale(1/scale_factor_x, 1/scale_factor_y)
         painter.setRenderHint(QPainter.SmoothPixmapTransform)
         painter.setTransform(transform)
         painter.setRenderHint(QPainter.Antialiasing)
@@ -4313,6 +4324,7 @@ class kMainWindow(QOpenGLWidget):
                     int(kstore.size[1] - ui_element._pos[1] - ui_element._pixmap.height() / 2),
                     ui_element._pixmap.scaled(ui_element._pixmap.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 )
+
         painter.resetTransform()
         self.updateFps()
 
@@ -4514,7 +4526,10 @@ class kMainWindow(QOpenGLWidget):
     def translateMousePos(self, pos):
         x = pos[0]
         y = pos[1]
-        return [int(x*kstore.scale_factor), int(kstore.size[1] - y*kstore.scale_factor)]
+        scale_factor_x = kstore.size[0]/kstore.window_size[0]
+        scale_factor_y = kstore.size[1]/kstore.window_size[1]
+
+        return [int(x*scale_factor_x), int(kstore.size[1] - y*scale_factor_y)]
     
     def mouseMoveEvent(self, event):    
         pos = event.pos()
@@ -4705,7 +4720,7 @@ def _getSample(name):
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'disableAnim', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
+__all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'setGridSize', 'getGridSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'disableAnim', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -4717,7 +4732,7 @@ def createWindow(width=1000, height=1000):
 
     **examples**
     - createWindow()
-    - createWindow(800,800)
+    - createWindow(1000,1000)
     """
     if quit:
         return 
@@ -4725,11 +4740,14 @@ def createWindow(width=1000, height=1000):
     sys.excepthook = exception_hook
 
     kstore.app = QApplication(sys.argv)
-    kstore.window = kMainWindow()
 
+    initSize = getInitWindowSize()
+    kstore.window_size = initSize
+
+    kstore.window = kMainWindow(*initSize)
     kstore.window.show()
-    initWindowSize()
 
+    
     action_queue.add(kMessage(" > begin drawing"))
 
     kstore.main_timer = QTimer()
@@ -4786,8 +4804,9 @@ def getWindowHeight():
     """
     return kstore.window.height() 
 
-def initWindowSize():
+def getInitWindowSize():
     screen = QDesktopWidget().availableGeometry()
+
     max_height = screen.height()
     max_width = screen.width()
     
@@ -4797,11 +4816,28 @@ def initWindowSize():
 
     size = int(0.9*min(max_width, max_height))
     
-    kstore.size[0] = 1000
-    kstore.size[1] = 1000
-    kstore.scale_factor = 1000/size
+    return [size]*2
 
-    kstore.window.setSize(size, size, kstore.scale_factor)
+def setGridSize(*size):
+    """
+        set grid size [x,y] in pixel
+
+        default size is 1000x1000
+
+        **examples**
+        - setGridSize(1000,1000)
+        - setGridSize([1000,1000]) *as a list*
+    """
+    size = toIntList(size)
+    
+    kstore.size = size
+    kstore.window.resize()
+
+def getGridSize():
+    """
+        get grid size in pixel as a list [x,y]
+    """
+    return kstore.size 
 
 def setWindowSize(*size):
     """
@@ -4811,26 +4847,11 @@ def setWindowSize(*size):
         - setWindowSize(1000, 1000)
         - setWindowSize([1000,1000]) *as a list*
     """
-    size = toFloatList(size)
-    width = size[0]
-    height = size[1]
-
-    screen = QDesktopWidget().availableGeometry()
-    max_height = screen.height()
-    max_width = screen.width()
+    size = toIntList(size)
     
-    temp_dock = QDockWidget()
-    dock_height = temp_dock.sizeHint().height()
-    max_height -= dock_height
+    kstore.window_size = size
 
-    window_width = min(width, max_width)
-    window_height = min(height, max_height)
-    
-    kstore.size[0] = window_width
-    kstore.size[1] = window_height
-    kstore.scale_factor = max(width / window_width, height / max_height)
-
-    kstore.window.setSize(kstore.size[0], kstore.size[1], kstore.scale_factor)
+    kstore.window.resize()
 
 def getWindowSize(*size):
     """
