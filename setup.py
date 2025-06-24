@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='ksbanim',
-    version='1.1.31',
+    version='1.1.32',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',
@@ -21,8 +21,8 @@ setup(
     url='https://github.com/tunnelrind/ksbanim', 
     classifiers=[
         'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
     python_requires='>=3.6',
+    licence="MIT",
 )
