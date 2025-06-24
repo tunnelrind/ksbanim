@@ -4431,8 +4431,7 @@ class kMainWindow(QOpenGLWidget):
 
         self.key_store.add(key_text)
         for handler in on_key_pressed_handlers:
-            if handler[1] == key_text or handler[1] == None:
-                handler[0](key_text)
+            handler[0](key_text)
 
     def keyReleaseEvent(self, event):
         if event.key() == Qt.Key_Escape:
