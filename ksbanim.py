@@ -59,10 +59,9 @@ def update_package():
     print("="*30)
     print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET) 
     print("="*30) 
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name], stdout=subprocess.DEVNULL,)
     print("="*30)
-    print(f"{package_name} has been updated to the latest version.")
-    print(BOLD + RED + "Please restart your python program." + RESET)
+    print(BOLD + RED + f"{package_name} has been updated to the latest version." + RESET)
     print("="*30)
 
 from OpenGL.GL import *
