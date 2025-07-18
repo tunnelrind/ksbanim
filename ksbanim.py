@@ -2879,6 +2879,12 @@ class kLine(kShape):
         
         self.setSize(width*length/current_length, height*length/current_length)
     
+    def setEndPoint(self, *point):
+        point = toFloatList(point)
+        dx = point[0] - self.pos[0]
+        dy = point[1] - self.pos[1]
+        self.setSize(dx, dy)
+
     # def setAngle(self, angle):
     #     width = self.getWidth()
     #     height = self.getHeight()
@@ -3163,6 +3169,25 @@ class kUIElement:
             self.setWidth(width)
             self.setHeight(height)
             kstore.unscaleAnim()
+    
+    def move(self, *distance):
+        """
+            move the ui element a certain distance in x and y direction 
+
+            **examples**
+            - button.move(100, 400)
+            - button.move([100,400]) *as a list*
+        """
+        if len(distance) == 1 and isinstance(distance[0], list) or isinstance(distance[0], tuple) or isinstance(distance[0], np.ndarray):
+            pass
+        elif len(distance) == 2:
+            pass 
+        else:
+            raise(ValueError("two numbers excpected"))
+        distance = toFloatList(distance)
+        self.pos[0] += distance[0]
+        self.pos[1] += distance[1]
+        action_queue.add(kInterpolator(copy.copy(self.pos), self._getPos, self._setPos))
     
     def getWidth(self): 
         """
@@ -3577,7 +3602,15 @@ class kText(kLabel):
         self.initOverflow("visible")
         self.initFill(False)
         self.initLine(False)
-        self.initSize([1000, 1000])
+
+        font = QFont()
+        font.setPointSize(int(self.fontSize))
+        font_metrics = QFontMetrics(font)
+
+        width = font_metrics.width(text)
+        height = font_metrics.height()
+
+        self.initSize([2*width, 2*height])
 
 class kButton(kLabel):
     def __init__(self, text, handler):
