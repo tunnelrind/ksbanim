@@ -45,7 +45,7 @@ def check_for_updates():
     
     try:
         current_version = version(package_name)
-        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=0.25)
+        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=1)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
         
@@ -4122,15 +4122,15 @@ class kMainWindow(QOpenGLWidget):
         self.setFormat(format)
 
         self.resize()
+        if kstore.draw_cursor:
+            kstore.cursor = kCursor()
+            kstore.cursor._draw()
+
         QTimer.singleShot(0, self.initLater)
 
 
     def initLater(self):
         kstore.grid = kGrid()
-
-        if kstore.draw_cursor:
-            kstore.cursor = kCursor()
-            kstore.cursor._draw()
 
         self.closeButton = QPushButton("x", self)
         self.closeButton.setFixedSize(30, 30)
@@ -4719,9 +4719,10 @@ def _getSample(name):
     return the_list 
 
 def _init():
-    QTimer.singleShot(0, check_for_updates)
+    pass
 
 def _cleanup():
+    check_for_updates()
     if update_needed:
         update_package()
 
