@@ -14,6 +14,7 @@ from shapely.geometry import Polygon
 import triangle as tr
 import colorsys
 import numpy as np
+import asyncio
 
 import inspect
 
@@ -33,11 +34,15 @@ def is_version_outdated(current_version, latest_version):
     latest_parts = list(map(int, latest_version.split('.')))
     return current_parts < latest_parts
 
+update_needed = False 
+package_name = 'ksbanim'
+
 def check_for_updates():
+    global update_needed
+
     if is_running_under_pdoc():
         return 
     
-    package_name = 'ksbanim'
     try:
         current_version = version(package_name)
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=0.25)
@@ -45,20 +50,20 @@ def check_for_updates():
         latest_version = response.json()['info']['version']
         
         if is_version_outdated(current_version, latest_version):
-            print("="*30)
-            print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET) 
-            print("="*30) 
-            subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
-            print("="*30)
-            print(f"{package_name} has been updated to version {latest_version}.")
-            print(BOLD + RED + "Please restart your python program." + RESET)
-            print("="*30)
-            exit()
+            update_needed = True 
             
     except requests.RequestException:
         pass  # Ignore network errors and do nothing
 
-check_for_updates()
+def update_package():
+    print("="*30)
+    print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET) 
+    print("="*30) 
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name])
+    print("="*30)
+    print(f"{package_name} has been updated to the latest version.")
+    print(BOLD + RED + "Please restart your python program." + RESET)
+    print("="*30)
 
 from OpenGL.GL import *
 
@@ -4093,7 +4098,7 @@ class kMainWindow(QOpenGLWidget):
         super().__init__()
         
         self.setWindowTitle("ksbanim drawing surface")
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
         self.fps_buffer = []
 
@@ -4117,20 +4122,15 @@ class kMainWindow(QOpenGLWidget):
         self.setFormat(format)
 
         self.resize()
-        QTimer.singleShot(100, self.bringToFront)
-        QTimer.singleShot(100, self.initLater)
-
-    def bringToFront(self):
-        self.raise_()
-        self.activateWindow()
-        self.setFocus()
+        QTimer.singleShot(0, self.initLater)
 
 
     def initLater(self):
         kstore.grid = kGrid()
 
-        kstore.cursor = kCursor()
-        kstore.cursor._draw()
+        if kstore.draw_cursor:
+            kstore.cursor = kCursor()
+            kstore.cursor._draw()
 
         self.closeButton = QPushButton("x", self)
         self.closeButton.setFixedSize(30, 30)
@@ -4718,6 +4718,13 @@ def _getSample(name):
     
     return the_list 
 
+def _init():
+    QTimer.singleShot(0, check_for_updates)
+
+def _cleanup():
+    if update_needed:
+        update_package()
+
 # ==================================== PUBLIC INTERFACE ===========================================
 
 __all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'setGridSize', 'getGridSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'disableAnim', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
@@ -4748,6 +4755,7 @@ def createWindow(width=1000, height=1000):
     kstore.window.show()
 
     
+    action_queue.add(kAction(_init))
     action_queue.add(kMessage(" > begin drawing"))
 
     kstore.main_timer = QTimer()
@@ -4867,6 +4875,8 @@ def run():
         return 
     
     action_queue.add(kMessage(" > end drawing (close with ESC or use the red X button on the top right)"))
+    action_queue.add(kAction(_cleanup))
+
     kstore.elapsed_timer.start()
     os._exit(kstore.app.exec_())
 
