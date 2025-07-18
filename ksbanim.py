@@ -641,6 +641,17 @@ def kNumber(instance, name, initial_value, update=True):
 
     return (public_getter, public_setter)
 
+def kString(instance, name, initial_value, update=True):
+    public_getter, public_setter = kValue(instance, name, str(initial_value), update)
+
+    def new_public_setter(value):
+        public_setter(str(value))
+
+    def new_public_getter():
+        return str(public_getter())
+    
+    return [new_public_getter, new_public_setter]
+
 def kValue(instance, name, initial_value, update=True):
     name = name
     private_name = f"_{name}"
@@ -994,6 +1005,7 @@ class kRainbow:
         self.i = 0
     
 def replaceLatex(text):
+    text = str(text)
     latex_to_unicode = {
         r'\\alpha': 'α',
         r'\\beta': 'β',
@@ -3344,12 +3356,12 @@ class kLabel(kUIElement):
         super().__init__(scale)
         self.name = "kLabel"
 
-        self.getLabel, self.setLabel = kValue(self, "label", "")
+        self.getLabel, self.setLabel = kString(self, "label", "")
         self.getPadding, self.setPadding = kNumber(self, "padding", 5)
         self.getAlignX, self.setAlignX = kValue(self, "alignX", "left")
         self.getAlignY, self.setAlignY = kValue(self, "alignY", "center")
         self.getOverflow, self.setOverflow = kValue(self, "overflow", "wrap")
-        self.getText, self.setText = kValue(self, "text", "")
+        self.getText, self.setText = kString(self, "text", "")
         self.getFontSize, self.setFontSize = kNumber(self, "fontSize", kstore.fontSize)
         self.getFontColor, self.setFontColor = kColor(self, "fontColor", kstore.fontColor)
 
@@ -3505,7 +3517,7 @@ class kLabel(kUIElement):
         else:  # "bottom"
             v_align = Qt.AlignBottom
 
-        the_text = replaceLatex(self._text)
+        the_text = replaceLatex(str(self._text))
         if self._overflow == "clip" or self._overflow == "visible":
             painter.drawText(text_rect, h_align | v_align, the_text)
         elif self._overflow == "wrap":
@@ -3574,7 +3586,7 @@ class kLabel(kUIElement):
         painter.setPen(QColor(*self._lineColor))
         painter.setBrush(QColor(*self._passiveColor))
 
-        the_label = "  " + self._label + "  "
+        the_label = "  " + str(self._label) + "  "
         the_max = max(self._size[0], self._size[1])
 
         width = font_metrics.width(the_label)
@@ -3722,7 +3734,7 @@ class kInput(kLabel):
     def _onUIClick(self, x, y, button):
         self._focused = True
         self._fillColor = self._focusColor
-        self._cursor_position = len(self._text)
+        self._cursor_position = len(str(self._text))
         self._updateShape()
 
     def _onUIMouseEnter(self, x, y):
@@ -3749,7 +3761,7 @@ class kInput(kLabel):
     def _emit(self):
         if self._handler:
             kstore.immediate = True
-            self._handler(self._text)
+            self._handler(str(self._text))
             kstore.immediate = False 
         self._focused = False 
         self._fillColor = self._passiveColor
@@ -3865,7 +3877,8 @@ class kInput(kLabel):
             font.setPointSize(int(self._fontSize))
             painter.setFont(font)
             font_metrics = QFontMetrics(font)
-                    
+            self._text = str(self._text)
+
             if self._overflow == "clip" or self._overflow == "visible":
                 cursor_x, cursor_y = self._getCursorXY([self._text], font_metrics)
                 cursor_x = min(cursor_x, self._size[0] - self._padding)
