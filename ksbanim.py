@@ -45,7 +45,7 @@ def check_for_updates():
     
     try:
         current_version = version(package_name)
-        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=1)
+        response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=2)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
         
@@ -59,7 +59,7 @@ def update_package():
     print("="*30)
     print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET) 
     print("="*30) 
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name], stdout=subprocess.DEVNULL,)
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print("="*30)
     print(BOLD + RED + f"{package_name} has been updated to the latest version." + RESET)
     print("="*30)
