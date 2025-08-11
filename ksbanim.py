@@ -3945,7 +3945,7 @@ class kList(kShape):
         pass 
     def setList(self, the_list): 
         """
-            sets the list
+            set the new list values and redraw
         """
         pass
 
@@ -4432,7 +4432,7 @@ class kMainWindow(QOpenGLWidget):
                     dts.append(kstore.dt/1000 + accumulated_duration)
 
             dts = [dt*1000 for dt in dts]
-            imageio.mimsave(file_name + ".gif", images, quantizer='nq', duration=dts)
+            imageio.mimsave(file_name + ".gif", images, quantizer='nq', duration=dts, loop=0)
             print(" > GIF saved")
 
         threading.Thread(target=save_frames).start()
