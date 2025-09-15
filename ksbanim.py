@@ -368,12 +368,12 @@ class kAction:
             return 0
 
 class kSetter:
-    def __init__(self, action_function, *args):
+    def __init__(self, action_function, *args, delay=0):
         self.immediate = kstore.immediate
         if self.immediate:
-            self.begin_time = kstore.elapsed_timer.elapsed()
+            self.begin_time = kstore.elapsed_timer.elapsed() + delay
         else:
-            self.begin_time = kstore.milliseconds
+            self.begin_time = kstore.milliseconds + delay
 
         self.action_function = action_function
         self.args = args
@@ -4089,9 +4089,7 @@ class kGrid:
         if not kstore.show_grid:
             return 
         
-        scale_factor_x = kstore.size[0]/kstore.window_size[0]
-        scale_factor_y = kstore.size[1]/kstore.window_size[1]
-        scale_factor = (scale_factor_x**2 + scale_factor_y**2)**0.5
+        scale_factor_x, scale_factor_y = kstore.window.getScaleFactors()
 
         for x in range(100, int(kstore.size[0]), 100):
             label = QLabel(str(x), kstore.window)
@@ -4173,7 +4171,14 @@ class kMainWindow(QOpenGLWidget):
 
         QTimer.singleShot(0, self.initLater)
 
+    def getScaleFactors(self):
+        device_pixel_ratio = self.devicePixelRatioF()  # or from QWindow/QScreen
 
+        scale_factor_x = kstore.size[0] / (kstore.window_size[0] * device_pixel_ratio)
+        scale_factor_y = kstore.size[1] / (kstore.window_size[1] * device_pixel_ratio)
+
+        return scale_factor_x, scale_factor_y
+    
     def initLater(self):
         kstore.grid = kGrid()
 
@@ -4349,8 +4354,7 @@ class kMainWindow(QOpenGLWidget):
         glPopAttrib()
         painter.endNativePainting()
 
-        scale_factor_x = kstore.size[0]/kstore.window_size[0]
-        scale_factor_y = kstore.size[1]/kstore.window_size[1]
+        scale_factor_x, scale_factor_y = self.getScaleFactors()
 
         painter.resetTransform()
         transform = QTransform()
@@ -4391,6 +4395,8 @@ class kMainWindow(QOpenGLWidget):
         screen = QApplication.primaryScreen()
         screenshot = screen.grabWindow(self.winId())
 
+        # return self.grabFramebuffer()
+    
         return screenshot.toImage()
 
     def saveAsPng(self, filename):
@@ -4571,8 +4577,7 @@ class kMainWindow(QOpenGLWidget):
     def translateMousePos(self, pos):
         x = pos[0]
         y = pos[1]
-        scale_factor_x = kstore.size[0]/kstore.window_size[0]
-        scale_factor_y = kstore.size[1]/kstore.window_size[1]
+        scale_factor_x, scale_factor_y = self.getScaleFactors()
 
         return [int(x*scale_factor_x), int(kstore.size[1] - y*scale_factor_y)]
     
@@ -5958,7 +5963,7 @@ def beginRecording():
     action_queue.add(kSetter(kstore.window.setRecord, True))
     kstore.unscaleAnim()
 
-def endRecording():
+def endRecording(delay=1000):
     """
         end frame capture
 
@@ -5973,7 +5978,7 @@ def endRecording():
         saveAsGif("example")
     """
     kstore.scaleAnim(0)
-    action_queue.add(kSetter(kstore.window.setRecord, False))
+    action_queue.add(kSetter(kstore.window.setRecord, False, delay=delay))
     kstore.unscaleAnim()
 
 def waitForFinish():
