@@ -4172,7 +4172,7 @@ class kMainWindow(QOpenGLWidget):
         QTimer.singleShot(0, self.initLater)
 
     def getScaleFactors(self):
-        device_pixel_ratio = self.devicePixelRatioF()  # or from QWindow/QScreen
+        device_pixel_ratio = 1
 
         scale_factor_x = kstore.size[0] / (kstore.window_size[0] * device_pixel_ratio)
         scale_factor_y = kstore.size[1] / (kstore.window_size[1] * device_pixel_ratio)
