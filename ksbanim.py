@@ -421,7 +421,7 @@ class kStore:
         self.animation = 250
         self.anim_stack = []
         self.line = False 
-        self.lineColor = [200,200,50, 255]
+        self.lineColor = [255,200,50, 255]
         self.lineWidth = 2
         self.fill = True
         self.fillColor = [255,200,50, 255]
@@ -429,7 +429,8 @@ class kStore:
         self.cursor = None 
         self.draw_cursor = True 
         self.fontSize = 12 
-        self.fontColor = [255,255,255, 255]
+        self.fontColor = [255,200,50, 255]
+        self.font = "Arial"
         self.backgroundColor = [0,0,0,255]
         self.window = None 
         self.grid = None 
@@ -3351,547 +3352,525 @@ class kUIElement:
 
         return False
     
-class kLabel(kUIElement):
-    def __init__(self, label="", text="", scale=True):
-        super().__init__(scale)
-        self.name = "kLabel"
+# class kLabel(kUIElement):
+#     def __init__(self, label="", text="", scale=True):
+#         super().__init__(scale)
+#         self.name = "kLabel"
 
-        self.getLabel, self.setLabel = kString(self, "label", "")
-        self.getPadding, self.setPadding = kNumber(self, "padding", 5)
-        self.getAlignX, self.setAlignX = kValue(self, "alignX", "left")
-        self.getAlignY, self.setAlignY = kValue(self, "alignY", "center")
-        self.getOverflow, self.setOverflow = kValue(self, "overflow", "wrap")
-        self.getText, self.setText = kString(self, "text", "")
-        self.getFontSize, self.setFontSize = kNumber(self, "fontSize", kstore.fontSize)
-        self.getFontColor, self.setFontColor = kColor(self, "fontColor", kstore.fontColor)
+#         self.getLabel, self.setLabel = kString(self, "label", "")
+#         self.getPadding, self.setPadding = kNumber(self, "padding", 5)
+#         self.getAlignX, self.setAlignX = kValue(self, "alignX", "left")
+#         self.getAlignY, self.setAlignY = kValue(self, "alignY", "center")
+#         self.getOverflow, self.setOverflow = kValue(self, "overflow", "wrap")
+#         self.getText, self.setText = kString(self, "text", "")
+#         self.getFontSize, self.setFontSize = kNumber(self, "fontSize", kstore.fontSize)
+#         self.getFontColor, self.setFontColor = kColor(self, "fontColor", kstore.fontColor)
 
-        self.initLine(True)
+#         self.initLine(True)
         
-        kstore.scaleAnim(0)
-        self.setText(text)
-        self.setLabel(label)
-        kstore.unscaleAnim()
+#         kstore.scaleAnim(0)
+#         self.setText(text)
+#         self.setLabel(label)
+#         kstore.unscaleAnim()
 
-    def getLabel(self): 
-        """
-            get the label name
-        """
-        pass
-    def setLabel(self, label): 
-        """
-            set the label name
-        """
-        pass
-    def getText(self): 
-        """
-            get the label text
-        """
-        pass
-    def setText(self, text): 
-        """
-            set the label text
-        """
-        pass
-    def getAlignX(self): 
-        """
-            get the horizontal alignment of the text ("left", "center", "right")
-        """
-        pass
-    def setAlignX(self, align): 
-        """
-            set the horizontal alignment of the text ("left", "center", "right")
-        """
-        pass
-    def getAlignY(self): 
-        """
-            get the vertical alignment of the text ("top", "center", "bottom")
-        """
-        pass
-    def setAlignY(self, align): 
-        """
-            get the vertical alignment of the text ("top", "center", "bottom")
-        """
-        pass
-    def getPadding(self): 
-        """
-            get the padding of the text
-        """
-        pass
-    def setPadding(self, padding): 
-        """
-            set the padding of the text
-        """
-        pass
+#     def getLabel(self): 
+#         """
+#             get the label name
+#         """
+#         pass
+#     def setLabel(self, label): 
+#         """
+#             set the label name
+#         """
+#         pass
+#     def getText(self): 
+#         """
+#             get the label text
+#         """
+#         pass
+#     def setText(self, text): 
+#         """
+#             set the label text
+#         """
+#         pass
+#     def getAlignX(self): 
+#         """
+#             get the horizontal alignment of the text ("left", "center", "right")
+#         """
+#         pass
+#     def setAlignX(self, align): 
+#         """
+#             set the horizontal alignment of the text ("left", "center", "right")
+#         """
+#         pass
+#     def getAlignY(self): 
+#         """
+#             get the vertical alignment of the text ("top", "center", "bottom")
+#         """
+#         pass
+#     def setAlignY(self, align): 
+#         """
+#             get the vertical alignment of the text ("top", "center", "bottom")
+#         """
+#         pass
+#     def getPadding(self): 
+#         """
+#             get the padding of the text
+#         """
+#         pass
+#     def setPadding(self, padding): 
+#         """
+#             set the padding of the text
+#         """
+#         pass
 
-    def getFontColor(self): 
-        """
-            returns the element's font color as a list [r,g,b,a] 
+#     def getFontColor(self): 
+#         """
+#             returns the element's font color as a list [r,g,b,a] 
 
-            - rgb = red, green, blue
-            - a stands for alpha (transparency)
-            - each value is between 0 and 255
-        """
-        pass
-    def setFontColor(self, *rgba): 
-        """"
-            set the element's font color (for texts, labels, inputs, buttons) in rgba
+#             - rgb = red, green, blue
+#             - a stands for alpha (transparency)
+#             - each value is between 0 and 255
+#         """
+#         pass
+#     def setFontColor(self, *rgba): 
+#         """"
+#             set the element's font color (for texts, labels, inputs, buttons) in rgba
 
-            - rgb = red, green, blue
-            - a stands for alpha (transparency)
-            - each value is between 0 and 255
+#             - rgb = red, green, blue
+#             - a stands for alpha (transparency)
+#             - each value is between 0 and 255
 
-            **examples**
+#             **examples**
 
-            - element.setFontColor(255,0,0)
-            - element.setFontColor(255,0,0, 100) *with alpha (transparency)*
-            - element.setFontColor([255,0,0]) *as a list*
-            - element.setFontColor([255,0,0,100]) *as a list (including alpha)*
-        """
-        pass
-    def getFontSize(self): 
-        """
-            get font size in pixel
-        """
-        pass
-    def setFontSize(self, size): 
-        """
-            set font size in pixel
-        """
-        pass
+#             - element.setFontColor(255,0,0)
+#             - element.setFontColor(255,0,0, 100) *with alpha (transparency)*
+#             - element.setFontColor([255,0,0]) *as a list*
+#             - element.setFontColor([255,0,0,100]) *as a list (including alpha)*
+#         """
+#         pass
+#     def getFontSize(self): 
+#         """
+#             get font size in pixel
+#         """
+#         pass
+#     def setFontSize(self, size): 
+#         """
+#             set font size in pixel
+#         """
+#         pass
 
-    def getOverflow(self): 
-        """
-            get the overflow ("clip", "wrap") of the text
-        """
-        pass 
-    def setOverflow(self, value): 
-        """
-            set the overflow ("clip", "wrap") of the text
-        """
-        pass 
+#     def getOverflow(self): 
+#         """
+#             get the overflow ("clip", "wrap") of the text
+#         """
+#         pass 
+#     def setOverflow(self, value): 
+#         """
+#             set the overflow ("clip", "wrap") of the text
+#         """
+#         pass 
 
-    def _updateShape(self):
-        super()._updateShape()
-        self._drawText()
-        if len(self._label) > 0:
-            self._draw_label()
+#     def _updateShape(self):
+#         super()._updateShape()
+#         self._drawText()
+#         if len(self._label) > 0:
+#             self._draw_label()
     
-    def _drawText(self):
-        the_max = max(self._size[0], self._size[1])
-        the_max = int(the_max)
+#     def _drawText(self):
+#         the_max = max(self._size[0], self._size[1])
+#         the_max = int(the_max)
 
-        painter = QPainter(self._pixmap)
-        painter.setPen(QColor(*[int(c) for c in self._fontColor]))
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setRenderHint(QPainter.TextAntialiasing)
+#         painter = QPainter(self._pixmap)
+#         painter.setPen(QColor(*[int(c) for c in self._fontColor]))
+#         painter.setRenderHint(QPainter.Antialiasing)
+#         painter.setRenderHint(QPainter.TextAntialiasing)
 
-        transform = QTransform()
-        transform.translate(the_max, the_max)
-        transform.rotate(-self._rot)
-        transform.translate(-the_max, -the_max)
-        painter.setRenderHint(QPainter.SmoothPixmapTransform)
-        painter.setTransform(transform)
+#         transform = QTransform()
+#         transform.translate(the_max, the_max)
+#         transform.rotate(-self._rot)
+#         transform.translate(-the_max, -the_max)
+#         painter.setRenderHint(QPainter.SmoothPixmapTransform)
+#         painter.setTransform(transform)
 
-        font = QFont()
-        font.setPointSize(int(self._fontSize))
-        font.setHintingPreference(QFont.PreferFullHinting)
+#         font = QFont()
+#         font.setPointSize(int(self._fontSize))
+#         font.setHintingPreference(QFont.PreferFullHinting)
 
-        painter.setFont(font)
-        self._font_metrics = QFontMetrics(font)
+#         painter.setFont(font)
+#         self._font_metrics = QFontMetrics(font)
         
-        text_rect = QRect(the_max+int(self._padding - self._size[0]/2), the_max+int(self._padding - self._size[1]/2), int(self._size[0])-2*int(self._padding), int(self._size[1])-2*int(self._padding))
+#         text_rect = QRect(the_max+int(self._padding - self._size[0]/2), the_max+int(self._padding - self._size[1]/2), int(self._size[0])-2*int(self._padding), int(self._size[1])-2*int(self._padding))
 
-        # Determine horizontal alignment
-        if self._alignX == "left":
-            h_align = Qt.AlignLeft
-        elif self._alignX == "center":
-            h_align = Qt.AlignHCenter
-        else:  # "right"
-            h_align = Qt.AlignRight
+#         # Determine horizontal alignment
+#         if self._alignX == "left":
+#             h_align = Qt.AlignLeft
+#         elif self._alignX == "center":
+#             h_align = Qt.AlignHCenter
+#         else:  # "right"
+#             h_align = Qt.AlignRight
 
-        # Determine vertical alignment
-        if self._alignY == "top":
-            v_align = Qt.AlignTop
-        elif self._alignY == "center":
-            v_align = Qt.AlignVCenter
-        else:  # "bottom"
-            v_align = Qt.AlignBottom
+#         # Determine vertical alignment
+#         if self._alignY == "top":
+#             v_align = Qt.AlignTop
+#         elif self._alignY == "center":
+#             v_align = Qt.AlignVCenter
+#         else:  # "bottom"
+#             v_align = Qt.AlignBottom
 
-        the_text = replaceLatex(str(self._text))
-        if self._overflow == "clip" or self._overflow == "visible":
-            painter.drawText(text_rect, h_align | v_align, the_text)
-        elif self._overflow == "wrap":
-            wrapped_text = "\n".join(self._wrapText(the_text, text_rect.width()))
-            painter.drawText(text_rect, h_align | v_align, wrapped_text)
+#         the_text = replaceLatex(str(self._text))
+#         if self._overflow == "clip" or self._overflow == "visible":
+#             painter.drawText(text_rect, h_align | v_align, the_text)
+#         elif self._overflow == "wrap":
+#             wrapped_text = "\n".join(self._wrapText(the_text, text_rect.width()))
+#             painter.drawText(text_rect, h_align | v_align, wrapped_text)
         
-        painter.end()
+#         painter.end()
 
-    def _wrapText(self, text, width):
-        word = ""
-        words = []
-        for c in text:
-            if c == " ":
-                if len(word) > 0:
-                    words.append(word)
-                words.append(c)
-                word = ""
-            else:
-                word += c 
+#     def _wrapText(self, text, width):
+#         word = ""
+#         words = []
+#         for c in text:
+#             if c == " ":
+#                 if len(word) > 0:
+#                     words.append(word)
+#                 words.append(c)
+#                 word = ""
+#             else:
+#                 word += c 
 
-        if len(word) > 0:
-            words.append(word)
+#         if len(word) > 0:
+#             words.append(word)
 
-        lines = []
-        current_line = ""
-        for word in words:
-            if self._font_metrics.width(current_line + word) <= width:
-                current_line += word if current_line else word
-            else:
-                lines.append(current_line)
-                current_line = word
-        if current_line:
-            lines.append(current_line)
+#         lines = []
+#         current_line = ""
+#         for word in words:
+#             if self._font_metrics.width(current_line + word) <= width:
+#                 current_line += word if current_line else word
+#             else:
+#                 lines.append(current_line)
+#                 current_line = word
+#         if current_line:
+#             lines.append(current_line)
 
-        if len(lines) == 0:
-            lines.append("")
+#         if len(lines) == 0:
+#             lines.append("")
 
-        return lines
+#         return lines
 
-    def _draw_label(self):
-        if self._label == "":
-            return 
+#     def _draw_label(self):
+#         if self._label == "":
+#             return 
         
-        the_max = max(self._size[0], self._size[1])
-        the_max = int(the_max)
+#         the_max = max(self._size[0], self._size[1])
+#         the_max = int(the_max)
         
-        painter = QPainter(self._pixmap)
-        painter.setPen(QColor(*[int(c) for c in self._fontColor]))
+#         painter = QPainter(self._pixmap)
+#         painter.setPen(QColor(*[int(c) for c in self._fontColor]))
 
-        transform = QTransform()
-        transform.translate(the_max, the_max)
-        transform.rotate(-self._rot)
-        transform.translate(-the_max, -the_max)
-        painter.setRenderHint(QPainter.SmoothPixmapTransform)
-        painter.setTransform(transform)
+#         transform = QTransform()
+#         transform.translate(the_max, the_max)
+#         transform.rotate(-self._rot)
+#         transform.translate(-the_max, -the_max)
+#         painter.setRenderHint(QPainter.SmoothPixmapTransform)
+#         painter.setTransform(transform)
 
-        font = QFont()
-        font.setPointSize(int(self._fontSize*0.7))
-        font.setWeight(QFont.Bold)  # Set the font weight to bold
-        painter.setFont(font)
-        font_metrics = QFontMetrics(font)
+#         font = QFont()
+#         font.setPointSize(int(self._fontSize*0.7))
+#         font.setWeight(QFont.Bold)  # Set the font weight to bold
+#         painter.setFont(font)
+#         font_metrics = QFontMetrics(font)
 
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setRenderHint(QPainter.TextAntialiasing)
+#         painter.setRenderHint(QPainter.Antialiasing)
+#         painter.setRenderHint(QPainter.TextAntialiasing)
 
-        painter.setPen(QColor(*self._lineColor))
-        painter.setBrush(QColor(*self._passiveColor))
+#         painter.setPen(QColor(*self._lineColor))
+#         painter.setBrush(QColor(*self._passiveColor))
 
-        the_label = "  " + str(self._label) + "  "
-        the_max = max(self._size[0], self._size[1])
+#         the_label = "  " + str(self._label) + "  "
+#         the_max = max(self._size[0], self._size[1])
 
-        width = font_metrics.width(the_label)
-        height = font_metrics.height()
+#         width = font_metrics.width(the_label)
+#         height = font_metrics.height()
 
-        x = the_max + self._radius + self._padding - self._size[0]/2
-        y = the_max - height/2 - self._size[1]/2
+#         x = the_max + self._radius + self._padding - self._size[0]/2
+#         y = the_max - height/2 - self._size[1]/2
         
-        rect = QRect(int(x), int(y), int(width), int(height))
+#         rect = QRect(int(x), int(y), int(width), int(height))
         
-        painter.drawRoundedRect(rect, 5, 5)
-        painter.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, the_label)
-        painter.end()
+#         painter.drawRoundedRect(rect, 5, 5)
+#         painter.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, the_label)
+#         painter.end()
 
-class kText(kLabel):
-    def __init__(self, text, *args, shape=None):
-        kstore.scaleAnim(0)
-        super().__init__("", text, False)
-        self.name = "kText"
-        kstore.unscaleAnim()
+# class kButton(kLabel):
+#     def __init__(self, text, handler):
+#         super().__init__("", text)
+#         self.name = "kButton"
 
-        self.initAlignX("center")
-        self.initAlignY("center")
-        self.initOverflow("visible")
-        self.initFill(False)
-        self.initLine(False)
+#         self.getHandler, self.setHandler = kValue(self, "handler", handler)
 
-        font = QFont()
-        font.setPointSize(int(self.fontSize))
-        font_metrics = QFontMetrics(font)
+#         self.initLine(True)
+#         self.initOnMousePress(self._onUIClick)
+#         self.initOnMouseRelease(self._onUIRelease)
+#         self.initOnMouseEnter(self._onUIMouseEnter)
+#         self.initOnMouseExit(self._onUIMouseExit)
+#         self.initFocusColor(kstore.fillColor)
+#         self.initAlignX("center")
+#         self.initAlignY("center")
 
-        width = font_metrics.width(text)
-        height = font_metrics.height()
+#         self.initRadius(25)
 
-        self.initSize([2*width, 2*height])
+#     def getHandler(self): 
+#         """
+#             get the button handler
+#         """
+#         pass
+#     def setHandler(self, handler): 
+#         """
+#             set the button handler
 
-class kButton(kLabel):
-    def __init__(self, text, handler):
-        super().__init__("", text)
-        self.name = "kButton"
+#             - handler is an function that executes, when the button is pressed
+#             - the handler function excpects 0 arguments
 
-        self.getHandler, self.setHandler = kValue(self, "handler", handler)
-
-        self.initLine(True)
-        self.initOnMousePress(self._onUIClick)
-        self.initOnMouseRelease(self._onUIRelease)
-        self.initOnMouseEnter(self._onUIMouseEnter)
-        self.initOnMouseExit(self._onUIMouseExit)
-        self.initFocusColor(kstore.fillColor)
-        self.initAlignX("center")
-        self.initAlignY("center")
-
-        self.initRadius(25)
-
-    def getHandler(self): 
-        """
-            get the button handler
-        """
-        pass
-    def setHandler(self, handler): 
-        """
-            set the button handler
-
-            - handler is an function that executes, when the button is pressed
-            - the handler function excpects 0 arguments
-
-            **example**
+#             **example**
             
-            def print_button():
-                print("world")
-        """ 
-        pass
+#             def print_button():
+#                 print("world")
+#         """ 
+#         pass
 
-    def _onUIClick(self, x, y, button):
-        self._fillColor = self._focusColor
+#     def _onUIClick(self, x, y, button):
+#         self._fillColor = self._focusColor
 
-        kstore.immediate = True
-        self._handler()
-        kstore.immediate = False 
+#         kstore.immediate = True
+#         self._handler()
+#         kstore.immediate = False 
 
-        self._updateShape()
+#         self._updateShape()
 
-    def _onUIRelease(self, x, y, button):
-        if self.contains(x,y):
-            self._onUIMouseEnter(x,y)
-        else:
-            self._onUIMouseExit(x,y)
+#     def _onUIRelease(self, x, y, button):
+#         if self.contains(x,y):
+#             self._onUIMouseEnter(x,y)
+#         else:
+#             self._onUIMouseExit(x,y)
 
-    def _onUIMouseEnter(self, x, y):
-        self._fillColor = self._hoverColor
-        self._updateShape()
+#     def _onUIMouseEnter(self, x, y):
+#         self._fillColor = self._hoverColor
+#         self._updateShape()
 
-    def _onUIMouseExit(self, x, y):
-        self._fillColor = self._passiveColor
-        self._updateShape()
+#     def _onUIMouseExit(self, x, y):
+#         self._fillColor = self._passiveColor
+#         self._updateShape()
 
-class kInput(kLabel):
-    def __init__(self, label, handler=None):
-        super().__init__(label, "")
-        self.name = "kInput"
+# class kInput(kLabel):
+#     def __init__(self, label, handler=None):
+#         super().__init__(label, "")
+#         self.name = "kInput"
 
-        self.getHandler, self.setHandler = kValue(self, "handler", handler)
-        self.initOverflow("clip")
-        self.initLine(True)
-        self.initOnMousePress(self._onUIClick)
-        self.initOnMouseRelease(self._onUIRelease)
-        self.initOnMouseEnter(self._onUIMouseEnter)
-        self.initOnMouseExit(self._onUIMouseExit)
+#         self.getHandler, self.setHandler = kValue(self, "handler", handler)
+#         self.initOverflow("clip")
+#         self.initLine(True)
+#         self.initOnMousePress(self._onUIClick)
+#         self.initOnMouseRelease(self._onUIRelease)
+#         self.initOnMouseEnter(self._onUIMouseEnter)
+#         self.initOnMouseExit(self._onUIMouseExit)
 
-        self._focused = False 
-        self._cursor_position = len(self._text)
-        self._cursor_visible = True
+#         self._focused = False 
+#         self._cursor_position = len(self._text)
+#         self._cursor_visible = True
 
-        self._blink_timer = QTimer()
-        self._blink_timer.timeout.connect(self._toggle_cursor_visibility)
-        self._blink_timer.start(500)
+#         self._blink_timer = QTimer()
+#         self._blink_timer.timeout.connect(self._toggle_cursor_visibility)
+#         self._blink_timer.start(500)
 
-    def getHandler(self): 
-        """
-            get the input handler
-        """
-        pass
-    def setHandler(self, handler): 
-        """
-            set the input handler
+#     def getHandler(self): 
+#         """
+#             get the input handler
+#         """
+#         pass
+#     def setHandler(self, handler): 
+#         """
+#             set the input handler
             
-            - handler is a function that executes, if the return key is pressed; handler expects one argument (the text as a string)
+#             - handler is a function that executes, if the return key is pressed; handler expects one argument (the text as a string)
             
-            **example**
+#             **example**
             
-            input.setHandler(print) # prints the input content, if return is pressed
-        """
-        pass
-    def getLabel(self): 
-        """
-            get the input name
-        """
-        pass
-    def setLabel(self, label): 
-        """
-            get the input name
-        """
-        pass 
+#             input.setHandler(print) # prints the input content, if return is pressed
+#         """
+#         pass
+#     def getLabel(self): 
+#         """
+#             get the input name
+#         """
+#         pass
+#     def setLabel(self, label): 
+#         """
+#             get the input name
+#         """
+#         pass 
     
-    def _onUIClick(self, x, y, button):
-        self._focused = True
-        self._fillColor = self._focusColor
-        self._cursor_position = len(str(self._text))
-        self._updateShape()
+#     def _onUIClick(self, x, y, button):
+#         self._focused = True
+#         self._fillColor = self._focusColor
+#         self._cursor_position = len(str(self._text))
+#         self._updateShape()
 
-    def _onUIMouseEnter(self, x, y):
-        if not self._focused:
-            self._fillColor = self._hoverColor
-            self._updateShape()
+#     def _onUIMouseEnter(self, x, y):
+#         if not self._focused:
+#             self._fillColor = self._hoverColor
+#             self._updateShape()
 
-    def _onUIMouseExit(self, x, y):
-        if not self._focused:
-            self._fillColor = self._passiveColor
-            self._updateShape()
+#     def _onUIMouseExit(self, x, y):
+#         if not self._focused:
+#             self._fillColor = self._passiveColor
+#             self._updateShape()
 
-    def _toggle_cursor_visibility(self):
-        self._cursor_visible = not self._cursor_visible
-        if self._ready:
-            self._updateShape()
+#     def _toggle_cursor_visibility(self):
+#         self._cursor_visible = not self._cursor_visible
+#         if self._ready:
+#             self._updateShape()
 
-    def _onUIRelease(self, x, y, button):
-        if not self.contains(x,y):
-            self._focused = False
-            self._fillColor = self._passiveColor
-            self._updateShape()
+#     def _onUIRelease(self, x, y, button):
+#         if not self.contains(x,y):
+#             self._focused = False
+#             self._fillColor = self._passiveColor
+#             self._updateShape()
 
-    def _emit(self):
-        if self._handler:
-            kstore.immediate = True
-            self._handler(str(self._text))
-            kstore.immediate = False 
-        self._focused = False 
-        self._fillColor = self._passiveColor
-        self._updateShape()
+#     def _emit(self):
+#         if self._handler:
+#             kstore.immediate = True
+#             self._handler(str(self._text))
+#             kstore.immediate = False 
+#         self._focused = False 
+#         self._fillColor = self._passiveColor
+#         self._updateShape()
 
-    def _keyPressEvent(self, event):
-        key = event.key()
+#     def _keyPressEvent(self, event):
+#         key = event.key()
 
-        if self._focused:
-            if key == Qt.Key_Return:
-                self._emit()
-            elif key == Qt.Key_Backspace:
-                if self._cursor_position > 0:
-                    self._text = self._text[:self._cursor_position - 1] + self._text[self._cursor_position:]
-                    self._cursor_position -= 1
-                    self._setText(self._text)
-                    self.text = self._text
-            elif key == Qt.Key_Delete:
-                if self._cursor_position < len(self._text):
-                    self._text = self._text[:self._cursor_position] + self._text[self._cursor_position + 1:]
-                    self._setText(self._text)
-                    self.text = self._text
-            elif key == Qt.Key_Left:
-                if self._cursor_position > 0:
-                    self._cursor_position -= 1
-                    self._cursor_visible = True
-                    self._updateShape()
-            elif key == Qt.Key_Right:
-                if self._cursor_position < len(self._text):
-                    self._cursor_position += 1
-                    self._updateShape()
-            else:  
-                new_text = self._text[:self._cursor_position] + event.text() + self._text[self._cursor_position:]
-                if self._overflow == "clip":
-                    if self._font_metrics.width(new_text) <= self._size[0] - 2 * self._padding:
-                        self.text = new_text
-                        self._cursor_position += 1
-                        self._setText(new_text)
-                        self.text = self._text
-                elif self._overflow == "visible":
-                    self.text = new_text 
-                    self._cursor_position += 1
-                    self._setText(new_text)
-                    self.text = self._text 
-                elif self._overflow == "wrap":
-                    lines = self._wrapText(new_text, self._size[0] - 2*self._padding)
-                    if len(lines)*self._font_metrics.height() < self._size[1] - 2*self._padding:
-                        self.text = new_text
-                        self._cursor_position += 1
-                        self._setText(new_text)
-                        self.text = self._text
+#         if self._focused:
+#             if key == Qt.Key_Return:
+#                 self._emit()
+#             elif key == Qt.Key_Backspace:
+#                 if self._cursor_position > 0:
+#                     self._text = self._text[:self._cursor_position - 1] + self._text[self._cursor_position:]
+#                     self._cursor_position -= 1
+#                     self._setText(self._text)
+#                     self.text = self._text
+#             elif key == Qt.Key_Delete:
+#                 if self._cursor_position < len(self._text):
+#                     self._text = self._text[:self._cursor_position] + self._text[self._cursor_position + 1:]
+#                     self._setText(self._text)
+#                     self.text = self._text
+#             elif key == Qt.Key_Left:
+#                 if self._cursor_position > 0:
+#                     self._cursor_position -= 1
+#                     self._cursor_visible = True
+#                     self._updateShape()
+#             elif key == Qt.Key_Right:
+#                 if self._cursor_position < len(self._text):
+#                     self._cursor_position += 1
+#                     self._updateShape()
+#             else:  
+#                 new_text = self._text[:self._cursor_position] + event.text() + self._text[self._cursor_position:]
+#                 if self._overflow == "clip":
+#                     if self._font_metrics.width(new_text) <= self._size[0] - 2 * self._padding:
+#                         self.text = new_text
+#                         self._cursor_position += 1
+#                         self._setText(new_text)
+#                         self.text = self._text
+#                 elif self._overflow == "visible":
+#                     self.text = new_text 
+#                     self._cursor_position += 1
+#                     self._setText(new_text)
+#                     self.text = self._text 
+#                 elif self._overflow == "wrap":
+#                     lines = self._wrapText(new_text, self._size[0] - 2*self._padding)
+#                     if len(lines)*self._font_metrics.height() < self._size[1] - 2*self._padding:
+#                         self.text = new_text
+#                         self._cursor_position += 1
+#                         self._setText(new_text)
+#                         self.text = self._text
 
-    def _updateShape(self):
-        super()._updateShape()
+#     def _updateShape(self):
+#         super()._updateShape()
 
-        if self._focused and self._cursor_visible:
-            self._draw_cursor()
+#         if self._focused and self._cursor_visible:
+#             self._draw_cursor()
             
-    def _getCursorXY(self, lines, font_metrics):
-        line = 0
-        delta = self._cursor_position
-        width = 0
+#     def _getCursorXY(self, lines, font_metrics):
+#         line = 0
+#         delta = self._cursor_position
+#         width = 0
 
-        while delta > 0:
-            if line >= len(lines):
-                delta = 0
-                width = font_metrics.width(lines[-1])
-                line -= 1
-            elif len(lines[line]) < delta:
-                delta -= len(lines[line])
-                line += 1
-            else:
-                width = font_metrics.width(lines[line][:delta])
-                delta = 0
+#         while delta > 0:
+#             if line >= len(lines):
+#                 delta = 0
+#                 width = font_metrics.width(lines[-1])
+#                 line -= 1
+#             elif len(lines[line]) < delta:
+#                 delta -= len(lines[line])
+#                 line += 1
+#             else:
+#                 width = font_metrics.width(lines[line][:delta])
+#                 delta = 0
 
-        # Horizontal alignment with padding
-        if self._alignX == "left":
-            x = self._padding + width
-        elif self._alignX == "center":
-            x = (self._size[0] - font_metrics.width(lines[line])) // 2 + width
-        elif self._alignX == "right":
-            x = self._size[0] - font_metrics.width(lines[line]) - self._padding + width
-        else:
-            x = self._padding + width 
+#         # Horizontal alignment with padding
+#         if self._alignX == "left":
+#             x = self._padding + width
+#         elif self._alignX == "center":
+#             x = (self._size[0] - font_metrics.width(lines[line])) // 2 + width
+#         elif self._alignX == "right":
+#             x = self._size[0] - font_metrics.width(lines[line]) - self._padding + width
+#         else:
+#             x = self._padding + width 
 
-        # Vertical alignment with padding
-        if self._alignY == "top":
-            y = self._padding + line * font_metrics.height()
-        elif self._alignY == "center":
-            y = (self._size[1] - max(len(lines),1) * font_metrics.height()) // 2 + line * font_metrics.height()
-        elif self._alignY == "bottom":
-            y = self._size[1] - max(len(lines), 1) * font_metrics.height() - self._padding + line * font_metrics.height()
-        else:
-            y = self._padding + line * font_metrics.height()
+#         # Vertical alignment with padding
+#         if self._alignY == "top":
+#             y = self._padding + line * font_metrics.height()
+#         elif self._alignY == "center":
+#             y = (self._size[1] - max(len(lines),1) * font_metrics.height()) // 2 + line * font_metrics.height()
+#         elif self._alignY == "bottom":
+#             y = self._size[1] - max(len(lines), 1) * font_metrics.height() - self._padding + line * font_metrics.height()
+#         else:
+#             y = self._padding + line * font_metrics.height()
 
-        return x, y
+#         return x, y
 
-    def _draw_cursor(self):
-        if self._cursor_visible:
-            the_max = max(self._size[0], self._size[1])
-            the_max = int(the_max)
+#     def _draw_cursor(self):
+#         if self._cursor_visible:
+#             the_max = max(self._size[0], self._size[1])
+#             the_max = int(the_max)
 
-            painter = QPainter(self._pixmap)
-            painter.setPen(QColor(*[int(c) for c in self._fontColor]))
+#             painter = QPainter(self._pixmap)
+#             painter.setPen(QColor(*[int(c) for c in self._fontColor]))
 
-            transform = QTransform()
-            transform.translate(the_max, the_max)
-            transform.rotate(-self._rot)
-            transform.translate(-the_max, -the_max)
-            painter.setTransform(transform)
+#             transform = QTransform()
+#             transform.translate(the_max, the_max)
+#             transform.rotate(-self._rot)
+#             transform.translate(-the_max, -the_max)
+#             painter.setTransform(transform)
 
-            font = QFont()
-            font.setPointSize(int(self._fontSize))
-            painter.setFont(font)
-            font_metrics = QFontMetrics(font)
-            self._text = str(self._text)
+#             font = QFont()
+#             font.setPointSize(int(self._fontSize))
+#             painter.setFont(font)
+#             font_metrics = QFontMetrics(font)
+#             self._text = str(self._text)
 
-            if self._overflow == "clip" or self._overflow == "visible":
-                cursor_x, cursor_y = self._getCursorXY([self._text], font_metrics)
-                cursor_x = min(cursor_x, self._size[0] - self._padding)
-            elif self._overflow == "wrap":
-                left_text = self._text
-                lines = self._wrapText(left_text, self._size[0] - 2 * self._padding)
-                cursor_x, cursor_y = self._getCursorXY(lines, font_metrics)
+#             if self._overflow == "clip" or self._overflow == "visible":
+#                 cursor_x, cursor_y = self._getCursorXY([self._text], font_metrics)
+#                 cursor_x = min(cursor_x, self._size[0] - self._padding)
+#             elif self._overflow == "wrap":
+#                 left_text = self._text
+#                 lines = self._wrapText(left_text, self._size[0] - 2 * self._padding)
+#                 cursor_x, cursor_y = self._getCursorXY(lines, font_metrics)
             
-            painter.setPen(QColor(*[int(c) for c in self._fontColor]))
-            cursor_x += the_max + 2-self._size[0]/2
-            cursor_y = cursor_y + the_max - self._size[1]/2
-            painter.drawLine(int(cursor_x), int(cursor_y), int(cursor_x), int(cursor_y + font_metrics.height()))
-            painter.end()
+#             painter.setPen(QColor(*[int(c) for c in self._fontColor]))
+#             cursor_x += the_max + 2-self._size[0]/2
+#             cursor_y = cursor_y + the_max - self._size[1]/2
+#             painter.drawLine(int(cursor_x), int(cursor_y), int(cursor_x), int(cursor_y + font_metrics.height()))
+#             painter.end()
 
 class kList(kShape):
     def __init__(self, the_list, width, height, *args, shape=None):
@@ -4044,93 +4023,707 @@ class kList(kShape):
         rotated_y = -local_x * sin_theta + local_y * cos_theta + self._pivot[1]
 
         return (0 <= rotated_x <= self._size[0]) and (0 <= rotated_y <= self._size[1])
-        
-class kGrid:
-    def __init__(self):
-        self._label_fontSize = 14
-        self._xlabels = []
-        self._ylabels = []
-        self._xlabel = None
-        self._ylabel = None
-        self._pixmap = QPixmap(*kstore.size)
-        self._pixmap.fill(Qt.transparent)
 
-        self._createLabels()
-        self._drawLines()
+class kWordBuffer:
+    def __init__(self):
+        self.buffer = {}  # Cache: {(word, font_name, font_size, font_color): texture_id}
+
+    def generate(self, word, font, font_size, font_color):
+        font = QFont(font, int(font_size))
+        metrics = QFontMetrics(font)
+        width = metrics.horizontalAdvance(word)
+        height = metrics.height()
+
+        image = QImage(width, height, QImage.Format_RGBA8888)
+        image.fill(Qt.transparent)
+        
+        painter = QPainter(image)
+        painter.setFont(font)
+        painter.setPen(QColor(*font_color))
+        painter.drawText(0, metrics.ascent(), word)
+        painter.end()
+
+        image = image.mirrored(False, True)
+
+        ptr = image.bits()
+        ptr.setsize(image.byteCount())
+        image_data = np.array(ptr).reshape((height, width, 4))
+
+        texture_id = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, texture_id)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+        glBindTexture(GL_TEXTURE_2D, 0)
+
+        key = (word, font, font_size, tuple(font_color))
+        self.buffer[key] = (texture_id, (width, height))
+        return texture_id, (width, height)
+
+    def load(self, word, font_name, font_size, font_color):
+        key = (word, font_name, font_size, tuple(font_color))
+        if key in self.buffer:
+            return self.buffer[key]
+        else:
+            return self.generate(word, font_name, font_size, font_color)
+
+
+class kText(kShape):
+    def __init__(self, text):
+        super().__init__()
+
+        self.getText, self.setText = kValue(self, "text", text)
+        self.getFont, self.setFont = kValue(self, "font", kstore.font)
+        self.getFontSize, self.setFontSize = kNumber(self, "fontSize", kstore.fontSize)
+        self.getFontColor, self.setFontColor = kColor(self, "fontColor", kstore.fontColor)
+
+    def getWidth(self): 
+        """
+            returns the images's width
+        """
+        return self.getSize()[0]
+    
+    def getHeight(self): 
+        """
+            returns the images's height
+        """
+        return self.getSize()[1]
+    
+    def getSize(self, *size): 
+        """
+            returns the image's size
+        """
+        if self.text == "":
+            return [0,0]
+        
+        self.texture_id, self.size = kWordBuffer().load(self.text, self.font, self.fontSize, self.fontColor)
+
+        return self.size
+
+    def getText(self): 
+        """
+            get the label text
+        """
+        pass
+
+    def setText(self, text): 
+        """
+            set the label text
+        """
+        pass
+
+    def getFontSize(self): 
+        """
+            get font size in pixel
+        """
+        pass
+    def setFontSize(self, size): 
+        """
+            set font size in pixel
+        """
+        pass
+    def getFontColor(self): 
+        """
+            returns the element's font color as a list [r,g,b,a] 
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+        """
+        pass
+    def setFontColor(self, *rgba): 
+        """"
+            set the element's font color (for texts, labels, inputs, buttons) in rgba
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+
+            **examples**
+
+            - element.setFontColor(255,0,0)
+            - element.setFontColor(255,0,0, 100) *with alpha (transparency)*
+            - element.setFontColor([255,0,0]) *as a list*
+            - element.setFontColor([255,0,0,100]) *as a list (including alpha)*
+        """
+        pass
+
+    def _generateVertices(self):
+        self._fillMode = GL_TRIANGLE_FAN
+        
+        if self._text == "":
+            self._texture_id = -1
+            self._size= [0,0]
+        else:
+            self._texture_id, self._size = kWordBuffer().load(self._text, self._font, self._fontSize, self._fontColor)
+
+        vertices = [
+            [0, 0],
+            [self._size[0], 0],
+            [self._size[0], self._size[1]],
+            [0, self._size[1]]
+        ]
+
+        for vertex in vertices:
+            vertex[0] -= self._size[0]/2
+            vertex[1] -= self._size[1]/2
+
+        return vertices
+
+    def generateVertices(self):
+        self.texture_id, self.size = kWordBuffer().load(self.text, self.font, self.fontSize, self.fontColor)
+
+        vertices = [
+            [0, 0],
+            [self.size[0], 0],
+            [self.size[0], self.size[1]],
+            [0, self.size[1]]
+        ]
+
+        for vertex in vertices:
+            vertex[0] -= self.size[0]/2
+            vertex[1] -= self.size[1]/2
+
+        return vertices
+
+    def copy(self):
+        the_copy = self.__class__(self._text, self.font, self.font_size, self.font_color)
+        the_copy._updateShape()
+        the_copy._draw()
+        the_copy.show()
+        return the_copy
+
+    def contains(self, x, y):
+        local_x = x - self._pos[0]
+        local_y = y - self._pos[1]
+
+        angle = math.radians(self._rot)
+        cos_theta = math.cos(angle)
+        sin_theta = math.sin(angle)
+        rotated_x = local_x * cos_theta + local_y * sin_theta + self._pivot[0]
+        rotated_y = -local_x * sin_theta + local_y * cos_theta + self._pivot[1]
+
+        return (0 <= rotated_x <= self.width) and (0 <= rotated_y <= self.height)
+
+    def _draw(self):
+        if not self._ready:
+            return 
+        
+        if self._idGL is not None:
+            glDeleteLists(self._idGL, 1)
+            self._idGL = None
+
+        idGL = glGenLists(1)
+        glNewList(idGL, GL_COMPILE)
+        glPushMatrix()
+
+        glTranslatef(self._pos[0], self._pos[1], 0)
+        glTranslatef(self._pivot[0], self._pivot[1], 0)
+        glRotatef(self._rot, 0, 0, 1)
+        glTranslatef(-self._pivot[0], -self._pivot[1], 0)
+
+        glEnable(GL_TEXTURE_2D)
+        
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE)  # ← Use texture color only
+        glColor4f(1.0, 1.0, 1.0, 1.0)  # ← Reset color to white
+        glBindTexture(GL_TEXTURE_2D, self._texture_id)
+
+        glBegin(GL_TRIANGLE_FAN)
+        glTexCoord2f(0.0, 0.0)
+        glVertex2f(self._vertices[0][0], self._vertices[0][1])
+        glTexCoord2f(1.0, 0.0)
+        glVertex2f(self._vertices[1][0], self._vertices[1][1])
+        glTexCoord2f(1.0, 1.0)
+        glVertex2f(self._vertices[2][0], self._vertices[2][1])
+        glTexCoord2f(0.0, 1.0)
+        glVertex2f(self._vertices[3][0], self._vertices[3][1])
+        glEnd()
+
+        glDisable(GL_TEXTURE_2D)
+
+        glPopMatrix()
+        glEndList()
+
+        self._idGL = idGL
+
+class kLabel(kRoundedRect):
+    def __init__(self, label="", text=""):
+        super().__init__(200, 50, 25)
+        self.name = "kLabel"
+
+        self.getLabel, self.setLabel = kString(self, "label", "")
+        self.getPadding, self.setPadding = kNumber(self, "padding", 5)
+        self.getAlignX, self.setAlignX = kValue(self, "alignX", "left")
+        self.getAlignY, self.setAlignY = kValue(self, "alignY", "center")
+        self.getOverflow, self.setOverflow = kValue(self, "overflow", "wrap")
+        self.getText, self.setText = kString(self, "text", "")
+        self.getFontSize, self.setFontSize = kNumber(self, "fontSize", kstore.fontSize)
+        self.getFontColor, self.setFontColor = kColor(self, "fontColor", kstore.fontColor)
+        
+        passiveColor = list([int(0.2*c) for c in kstore.fillColor])
+        passiveColor[3] = 255
+
+        hoverColor = list([int(0.4*c) for c in kstore.fillColor])
+        hoverColor[3] = 255
+
+        focusColor = list([int(0.6*c) for c in kstore.fillColor])
+        focusColor[3] = 255
+
+        self.passiveColor, self.setPassiveColor = kColor(self, "passiveColor", passiveColor)
+        self.getHoverColor, self.setHoverColor = kColor(self, "hoverColor", hoverColor)
+        self.getFocusColor, self.setFocusColor = kColor(self, "focusColor", focusColor)
+        self.initFillColor(self._passiveColor)
+        self.initLine(True)
+
+        self._words = []
+        kstore.scaleAnim(0)
+        self.setText(text)
+        self.setLabel(label)
+        self._initText()
+        kstore.unscaleAnim()
+
+    def _resetWords(self):
+        for word in self._words:
+            word.remove()
+
+        self._words.clear()
+
+    def _initText(self):
+        self._resetWords()
+
+        tokens = []
+        lines = self._text.split("\n")
+
+        for line in lines:
+            i = 0
+            while i < len(line):
+                if line[i] == " ":
+                    # Count consecutive spaces
+                    space_count = 1
+                    while i + space_count < len(line) and line[i + space_count] == " ":
+                        space_count += 1
+                    for _ in range(space_count):
+                        tokens.append(" ")
+                    i += space_count
+                else:
+                    # Extract word
+                    start = i
+                    while i < len(line) and line[i] != " ":
+                        i += 1
+                    tokens.append(line[start:i])
+            tokens.append("\n")
+
+        if tokens and tokens[-1] == "\n":
+            tokens.pop()
+
+        for token in tokens:
+            if token == " ":
+                word_drawing = drawText(" ")
+            elif token == "\n":
+                word_drawing = "\n"
+            else:
+                word_drawing = drawText(token)
+            self._words.append(word_drawing)
+
+    def _splitIntoLines(self):
+        max_width = self._size[0] - 2 * self._padding
+        lines = []
+        current_line = []
+        current_width = 0
+        skip_space = True
+
+        for word in self._words:
+            if word == "\n":
+                if current_line:
+                    lines.append(current_line)
+                current_line = []
+                current_width = 0
+                skip_space = True
+                continue
+
+            if isinstance(word, str) and word == " " and skip_space:
+                continue  # skip leading space
+
+            word_width = word.getWidth()
+
+            if current_width + word_width > max_width and current_line:
+                lines.append(current_line)
+                current_line = []
+                current_width = 0
+                skip_space = True
+
+            current_line.append(word)
+            current_width += word_width
+            skip_space = False
+
+        if current_line:
+            lines.append(current_line)
+
+        return lines
+
+    def _draw(self):
+        super()._draw()
+        self._drawText()
+
+    def _drawText(self):
+        kstore.immediate = True
+        kstore.scaleAnim(0)
+        
+        self._initText()
+        lines = self._splitIntoLines()
+        max_height = self._size[1] - 2 * self._padding
+
+        total_text_height = sum(max(word.getHeight() for word in line) for line in lines)
+
+        # Compute vertical start position based on alignment
+        if self._alignY == "top":
+            y_start = self._size[1] - self._padding
+        elif self._alignY == "center":
+            y_start = (self._size[1] + total_text_height) / 2
+        elif self._alignY == "bottom":
+            y_start = self._padding
+        else:
+            y_start = self._size[1] - self._padding  # default to top
+
+        y_offset = y_start - total_text_height
+        y = self._pos[1] + y_offset
+        used_height = 0
+
+        for line in lines:
+            line_height = max(word.getHeight() for word in line)
+            used_height += line_height
+
+            if used_height > max_height:
+                for word in line:
+                    word.hide()
+                continue
+
+            line_width = sum(word.getWidth() for word in line)
+
+            # Horizontal alignment
+            if self._alignX == "left":
+                x = self._pos[0] - self._size[0] / 2 + self._padding
+            elif self._alignX == "center":
+                x = self._pos[0] - line_width / 2
+            elif self._alignX == "right":
+                x = self._pos[0] + self._size[0] / 2 - self._padding - line_width
+            else:
+                x = self._pos[0] - self._size[0] / 2 + self._padding
+
+            y += line_height/2
+
+            for word in line:
+                word.setPos(x + word.getWidth() / 2, y)
+                word.show()
+                x += word.getWidth()
+            y += line_height / 2  # prepare for next line
+
+        kstore.unscaleAnim()
+        kstore.immediate = False
+
+    def getLabel(self): 
+        """
+            get the label name
+        """
+        pass
+    def setLabel(self, label): 
+        """
+            set the label name
+        """
+        pass
+    def getText(self): 
+        """
+            get the label text
+        """
+        pass
+    def setText(self, text): 
+        """
+            set the label text
+        """
+        pass
+    def getAlignX(self): 
+        """
+            get the horizontal alignment of the text ("left", "center", "right")
+        """
+        pass
+    def setAlignX(self, align): 
+        """
+            set the horizontal alignment of the text ("left", "center", "right")
+        """
+        pass
+    def getAlignY(self): 
+        """
+            get the vertical alignment of the text ("top", "center", "bottom")
+        """
+        pass
+    def setAlignY(self, align): 
+        """
+            get the vertical alignment of the text ("top", "center", "bottom")
+        """
+        pass
+    def getPadding(self): 
+        """
+            get the padding of the text
+        """
+        pass
+    def setPadding(self, padding): 
+        """
+            set the padding of the text
+        """
+        pass
+
+    def getFontColor(self): 
+        """
+            returns the element's font color as a list [r,g,b,a] 
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+        """
+        pass
+    def setFontColor(self, *rgba): 
+        """"
+            set the element's font color (for texts, labels, inputs, buttons) in rgba
+
+            - rgb = red, green, blue
+            - a stands for alpha (transparency)
+            - each value is between 0 and 255
+
+            **examples**
+
+            - element.setFontColor(255,0,0)
+            - element.setFontColor(255,0,0, 100) *with alpha (transparency)*
+            - element.setFontColor([255,0,0]) *as a list*
+            - element.setFontColor([255,0,0,100]) *as a list (including alpha)*
+        """
+        pass
+    def getFontSize(self): 
+        """
+            get font size in pixel
+        """
+        pass
+    def setFontSize(self, size): 
+        """
+            set font size in pixel
+        """
+        pass
+
+    def getOverflow(self): 
+        """
+            get the overflow ("clip", "wrap") of the text
+        """
+        pass 
+    def setOverflow(self, value): 
+        """
+            set the overflow ("clip", "wrap") of the text
+        """
+        pass 
+
+    # def _updateShape(self):
+    #     super()._updateShape()
+    #     self._drawText()
+    #     if len(self._label) > 0:
+    #         self._draw_label()
+    
+    # def _drawText(self):
+    #     the_max = max(self._size[0], self._size[1])
+    #     the_max = int(the_max)
+
+    #     painter = QPainter(self._pixmap)
+    #     painter.setPen(QColor(*[int(c) for c in self._fontColor]))
+    #     painter.setRenderHint(QPainter.Antialiasing)
+    #     painter.setRenderHint(QPainter.TextAntialiasing)
+
+    #     transform = QTransform()
+    #     transform.translate(the_max, the_max)
+    #     transform.rotate(-self._rot)
+    #     transform.translate(-the_max, -the_max)
+    #     painter.setRenderHint(QPainter.SmoothPixmapTransform)
+    #     painter.setTransform(transform)
+
+    #     font = QFont()
+    #     font.setPointSize(int(self._fontSize))
+    #     font.setHintingPreference(QFont.PreferFullHinting)
+
+    #     painter.setFont(font)
+    #     self._font_metrics = QFontMetrics(font)
+        
+    #     text_rect = QRect(the_max+int(self._padding - self._size[0]/2), the_max+int(self._padding - self._size[1]/2), int(self._size[0])-2*int(self._padding), int(self._size[1])-2*int(self._padding))
+
+    #     # Determine horizontal alignment
+    #     if self._alignX == "left":
+    #         h_align = Qt.AlignLeft
+    #     elif self._alignX == "center":
+    #         h_align = Qt.AlignHCenter
+    #     else:  # "right"
+    #         h_align = Qt.AlignRight
+
+    #     # Determine vertical alignment
+    #     if self._alignY == "top":
+    #         v_align = Qt.AlignTop
+    #     elif self._alignY == "center":
+    #         v_align = Qt.AlignVCenter
+    #     else:  # "bottom"
+    #         v_align = Qt.AlignBottom
+
+    #     the_text = replaceLatex(str(self._text))
+    #     if self._overflow == "clip" or self._overflow == "visible":
+    #         painter.drawText(text_rect, h_align | v_align, the_text)
+    #     elif self._overflow == "wrap":
+    #         wrapped_text = "\n".join(self._wrapText(the_text, text_rect.width()))
+    #         painter.drawText(text_rect, h_align | v_align, wrapped_text)
+        
+    #     painter.end()
+
+    # def _wrapText(self, text, width):
+    #     word = ""
+    #     words = []
+    #     for c in text:
+    #         if c == " ":
+    #             if len(word) > 0:
+    #                 words.append(word)
+    #             words.append(c)
+    #             word = ""
+    #         else:
+    #             word += c 
+
+    #     if len(word) > 0:
+    #         words.append(word)
+
+    #     lines = []
+    #     current_line = ""
+    #     for word in words:
+    #         if self._font_metrics.width(current_line + word) <= width:
+    #             current_line += word if current_line else word
+    #         else:
+    #             lines.append(current_line)
+    #             current_line = word
+    #     if current_line:
+    #         lines.append(current_line)
+
+    #     if len(lines) == 0:
+    #         lines.append("")
+
+    #     return lines
+
+    # def _draw_label(self):
+    #     if self._label == "":
+    #         return 
+        
+    #     the_max = max(self._size[0], self._size[1])
+    #     the_max = int(the_max)
+        
+    #     painter = QPainter(self._pixmap)
+    #     painter.setPen(QColor(*[int(c) for c in self._fontColor]))
+
+    #     transform = QTransform()
+    #     transform.translate(the_max, the_max)
+    #     transform.rotate(-self._rot)
+    #     transform.translate(-the_max, -the_max)
+    #     painter.setRenderHint(QPainter.SmoothPixmapTransform)
+    #     painter.setTransform(transform)
+
+    #     font = QFont()
+    #     font.setPointSize(int(self._fontSize*0.7))
+    #     font.setWeight(QFont.Bold)  # Set the font weight to bold
+    #     painter.setFont(font)
+    #     font_metrics = QFontMetrics(font)
+
+    #     painter.setRenderHint(QPainter.Antialiasing)
+    #     painter.setRenderHint(QPainter.TextAntialiasing)
+
+    #     painter.setPen(QColor(*self._lineColor))
+    #     painter.setBrush(QColor(*self._passiveColor))
+
+    #     the_label = "  " + str(self._label) + "  "
+    #     the_max = max(self._size[0], self._size[1])
+
+    #     width = font_metrics.width(the_label)
+    #     height = font_metrics.height()
+
+    #     x = the_max + self._radius + self._padding - self._size[0]/2
+    #     y = the_max - height/2 - self._size[1]/2
+        
+    #     rect = QRect(int(x), int(y), int(width), int(height))
+        
+    #     painter.drawRoundedRect(rect, 5, 5)
+    #     painter.drawText(rect, Qt.AlignLeft | Qt.AlignVCenter, the_label)
+    #     painter.end()
+
+class kGrid:
+    def __init__(self, width, dx, height, dy):
+        self.width = width 
+        self.height = height
+        self.lineColor=(100,100,100,100)
+        self.fontColor = (255,255,255,150)
+        self.fontSize = 12
+        self.lineWidth=1
+
+        self.dx = dx
+        self.dy = dy
+        self.labels = []
+        self.lines = []
+
+        self.draw()
 
     def resize(self):
+        print("grid resize")
+
+    def clear(self):
+        for label in self.labels:
+            label.remove()
+
+        for line in self.lines:
+            line.remove()
+
+        self.labels.clear()
+        self.lines.clear()
+        
+    def draw(self):
+        kstore.immediate = True
+        kstore.scaleAnim(0)
         self.clear()
-
-    def clear(self): 
-        self._pixmap = QPixmap(kstore.size[0], kstore.size[1])
-        self._pixmap.fill(Qt.transparent)
-
-        if len(self._xlabels) > 0:
-            for label in self._xlabels:
-                label.deleteLater()
-            for label in self._ylabels:
-                label.deleteLater()
-
-            self._xlabels = []
-            self._ylabels = []
-
-        if self._xlabel is not None:
-            self._xlabel.deleteLater()
-            self._xlabel = None 
-        
-        if self._ylabel is not None:
-            self._ylabel.deleteLater()
-            self._ylabel = None 
-
-        self._createLabels()
-        self._drawLines()
-        
-    def _createLabels(self):
-        if not kstore.show_grid:
-            return 
-        
-        scale_factor_x, scale_factor_y = kstore.window.getScaleFactors()
-
-        for x in range(100, int(kstore.size[0]), 100):
-            label = QLabel(str(x), kstore.window)
-            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize)}px;")
-            label.move(int(x/scale_factor_x)+10, int(kstore.window_size[1] - 30))
-            label.show()
-            self._xlabels.append(label)
-
-        for y in range(0, int(kstore.size[1]), 100):
-            label = QLabel(str(y), kstore.window)
-            label.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize)}px;")
-            label.move(int(10), int((kstore.window_size[1] - y/scale_factor_y) - 30))
-            label.show()
-            self._ylabels.append(label)
-
-        self._xlabel = QLabel("x", kstore.window)
-        self._xlabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize)}px;")
-        self._xlabel.move(int((kstore.window_size[0] - 20)), int((kstore.window_size[1] - 40) ))
-        self._xlabel.show()
-
-        self._ylabel = QLabel("y", kstore.window)
-        self._ylabel.setStyleSheet(f"color: rgb(200, 200, 200); font-size: {int(self._label_fontSize)}px;")
-        self._ylabel.move(int(20), 0)
-        self._ylabel.show()
-
-    def _drawLines(self):
-        if not kstore.show_grid:
-            return 
-
-        painter = QPainter(self._pixmap)
-        pen = QPen(QColor(200, 200, 200, 50))
-        pen.setWidth(1)
-        painter.setPen(pen)
-
-        for x in range(100, int(kstore.size[0]), 100):
-            painter.drawLine(x, 0, x, int(kstore.size[1]))
-
-        for y in range(100, int(kstore.size[1]), 100):
-            painter.drawLine(0, y, int(kstore.size[0]), y)
-        painter.end()
+        self.createLabels()
+        self.drawLines()
+        kstore.immediate = False 
+        kstore.unscaleAnim()
     
+    def drawLine(self, x,y,angle):
+        line = drawLine(1000)
+        line.setPos(x,y)
+        line.setRot(angle)
+        line.setLineWidth(self.lineWidth)
+        line.setColor(self.lineColor)
+
+        self.lines.append(line)
+
+    def drawLabel(self, x,y, text):
+        label = drawText(text)
+        label.setPos(x,y)
+        label.setRot(0)
+        label.setFontColor(self.fontColor)
+        label.setFontSize(self.fontSize)
+
+        self.labels.append(label)
+
+    def createLabels(self):
+        for x in range(int(self.dx), int(self.width), int(self.dx)):
+            self.drawLabel(x+20,20,x)
+        
+        self.drawLabel(self.width-20, 20, "x →")
+
+        for y in range(int(self.dy), int(self.height), int(self.dy)):
+            self.drawLabel(20,y+20,y)
+       
+        self.drawLabel(20, self.height-20, "y ↑")
+
+    def drawLines(self):
+        for x in range(int(self.dx), int(self.width), int(self.dx)):
+            self.drawLine(x,0,90)
+        
+        for y in range(int(self.dy), int(self.height), int(self.dy)):
+            self.drawLine(0,y,0)
+
 # ==================================== MAIN WINDOW CONTROL ===========================================
 
 def debugCallback(*args, **kwargs):
@@ -4180,7 +4773,7 @@ class kMainWindow(QOpenGLWidget):
         return scale_factor_x, scale_factor_y
     
     def initLater(self):
-        kstore.grid = kGrid()
+        kstore.grid = kGrid(1000, 100, 1000, 100)
 
         self.closeButton = QPushButton("x", self)
         self.closeButton.setFixedSize(30, 30)
@@ -4333,10 +4926,6 @@ class kMainWindow(QOpenGLWidget):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-    def drawGrid(self, painter):
-        if kstore.show_grid and kstore.grid is not None:              
-            painter.drawPixmap(0, 0, kstore.grid._pixmap)
-
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.beginNativePainting()
@@ -4363,8 +4952,6 @@ class kMainWindow(QOpenGLWidget):
         painter.setTransform(transform)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setRenderHint(QPainter.TextAntialiasing)
-
-        self.drawGrid(painter)
         
         for ui_element in ui_buffer:
             if ui_element._ready:
@@ -4778,7 +5365,7 @@ def _cleanup():
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
-__all__ = ['showGrid', 'hideGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'setGridSize', 'getGridSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'disableAnim', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'hideCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
+__all__ = ['showGrid', 'maximizeWindow', 'setWindowWidth', 'setWindowHeight', 'getWindowWidth', 'getWindowHeight', 'setWindowSize', 'getWindowSize', 'setGridSize', 'getGridSize', 'drawEllipse', 'drawCircle', 'drawRect', 'drawLine', 'drawLineTo', 'drawVector', 'drawVectorTo', 'drawTriangle', 'drawRoundedRect', 'drawArc', 'drawPoly', 'setAnim', 'setDelay', 'setTime', 'disableAnim', 'getAnim', 'getDelay', 'delay', 'setPos', 'getPos', 'getX', 'setX', 'setY', 'getY', 'setRot', 'getRot', 'move', 'forward', 'backward', 'left', 'right', 'up', 'down', 'rotate', 'penDown', 'penUp', 'setLine', 'getLine', 'setFill', 'getFill', 'setColorMixing', 'getColorMixing', 'getDefaultColor', 'setColor', 'getColor', 'setFillColor', 'getFillColor', 'setLineColor', 'getLineColor', 'setBackgroundColor', 'getBackgroundColor', 'setLineWidth', 'getLineWidth', 'saveAsPng', 'onTick', 'removeOnTick', 'setFrameTick', 'getTick', 'setFps', 'getFps', 'onKeyPress', 'removeOnKeyPress', 'onKeyRelease', 'removeOnKeyRelease', 'onMousePress', 'removeOnMousePress', 'onMouseRelease', 'removeOnMouseRelease', 'onMouseMoved', 'removeOnMouseMoved', 'isKeyPressed', 'isMousePressed', 'getMousePos', 'getMouseX', 'getMouseY', 'drawInput', 'drawLabel', 'drawText', 'drawButton', 'setFontSize', 'getFontSize', 'setFontColor', 'getFontColor', 'setAnimationType', 'showCursor', 'clear', "getListSample", "beginRecording", "endRecording", "waitForFinish", "saveAsGif", "saveAsMp4", "drawImage", "getRainbow", "drawList"]
 
 def createWindow(width=1000, height=1000):
     """
@@ -4818,19 +5405,23 @@ def createWindow(width=1000, height=1000):
 
 def _grid(value):
     kstore.show_grid = value 
-    kstore.grid.clear()
 
-def showGrid():
+    if kstore.grid == None:
+        kstore.grid = kGrid(kstore.size[0], 100, kstore.size[1], 100)
+
+    if value:
+        kstore.grid.clear()
+        kstore.grid.draw()
+    else:
+        kstore.grid.clear()
+
+def showGrid(value):
     """
         shows a 100x100 coordinate grid
-    """
-    action_queue.add(kSetter(_grid, True))
 
-def hideGrid():
+        value can be True or False
     """
-        hides the coordinate grid
-    """
-    action_queue.add(kSetter(_grid, False))
+    action_queue.add(kSetter(_grid, value))
 
 def maximizeWindow():
     """
@@ -6038,18 +6629,15 @@ def setAnimationType(type):
     else:
         raise ValueError("unknown inteprolation function")
 
-def showCursor():
+def showCursor(value):
     """
         shows the drawing cursor
-    """
-    if kstore.cursor is not None:
-        kstore.cursor.show()
 
-def hideCursor():
+        value can be True or False
     """
-        hides the drawing cursor
-    """
-    if kstore.cursor is not None:
+    if kstore.cursor is not None and value:
+        kstore.cursor.show()
+    elif kstore.cursor is not None and not value:
         kstore.cursor.hide()
 
 def _clear():
