@@ -1140,7 +1140,6 @@ def toColor(args):
 # ==================================== SHAPES ===========================================
 
 shape_buffer = []
-ui_buffer = []
 
 class kShape(ABC):
     counter = 0
@@ -1157,7 +1156,8 @@ class kShape(ABC):
         self._vbo = None 
         self._vbo_triangle = None
         self._idGL = None
-        
+        self._ui = False 
+
         self._pixmap = None
         self._painter = None 
         self._transform = QTransform()
@@ -1167,7 +1167,6 @@ class kShape(ABC):
         self.getRot, self.setRot = kNumber(self, "rot", kstore.rot, update=False)
         self.getLineWidth, self.setLineWidth = kNumber(self, "lineWidth", kstore.lineWidth)
 
-        self.getZ, self.setZ = kNumber(self, "z", 0)
         self.getPos, self.setPos, self.getX, self.setX, self.getY, self.setY = kVec2(self, "pos", kstore.pos, update=False)
 
         self.getPivot, self.setPivot, self.getPivotX, self.setPivotX, self.getPivotY, self.setPivotY = kVec2(self, "pivot", [0,0], update=False)
@@ -1555,6 +1554,7 @@ class kShape(ABC):
             print("")
             exit()
 
+        
         flattened_vertices = [float(coord) for vertex in self._vertices for coord in vertex]
         vertex_data = struct.pack(f'{len(flattened_vertices)}f', *flattened_vertices)
 
@@ -1602,7 +1602,7 @@ class kShape(ABC):
 
         glTranslatef(self._pos[0], self._pos[1], 0)
         glRotatef(self._rot, 0, 0, 1)
-        glTranslatef(-self._pivot[0], -self._pivot[1], self._z)
+        glTranslatef(-self._pivot[0], -self._pivot[1], 0)
 
         if self._fill:
             if self._fillMode == GL_TRIANGLE_FAN:
@@ -2539,7 +2539,7 @@ class kImage(kShape):
         glTranslatef(self._pos[0], self._pos[1], 0)
         glTranslatef(self._pivot[0], self._pivot[1], 0)
         glRotatef(self._rot, 0, 0, 1)
-        glTranslatef(-self._pivot[0], -self._pivot[1], self._z)
+        glTranslatef(-self._pivot[0], -self._pivot[1], 0)
 
         if self._fill:
             glEnable(GL_TEXTURE_2D)
@@ -3285,6 +3285,7 @@ class kList(kShape):
 
         return (0 <= rotated_x <= self._size[0]) and (0 <= rotated_y <= self._size[1])
 
+
 class kWordBuffer:
     def __init__(self):
         self.buffer = {}  # Cache: {(word, font_name, font_size, font_color): texture_id}
@@ -3295,16 +3296,21 @@ class kWordBuffer:
 
         font = QFont(font, int(font_size))
         metrics = QFontMetrics(font)
-        width = metrics.horizontalAdvance(word)
-        height = metrics.height()
+        rect = metrics.boundingRect(word)
+        width = rect.width()
+        height = rect.height()
+
+        
+        if width <= 0:
+            width = metrics.horizontalAdvance(word)
 
         image = QImage(width, height, QImage.Format_RGBA8888)
         image.fill(Qt.transparent)
-        
+
         painter = QPainter(image)
         painter.setFont(font)
         painter.setPen(QColor(*font_color))
-        painter.drawText(0, metrics.ascent(), word)
+        painter.drawText(-rect.x(), -rect.y(), word)
         painter.end()
 
         image = image.mirrored(False, True)
@@ -3334,6 +3340,7 @@ class kWordBuffer:
         else:
             return self.generate(word, font_name, font_size, font_color)
 
+the_word_buffer = kWordBuffer()
 
 class kText(kShape):
     def __init__(self, text):
@@ -3358,14 +3365,15 @@ class kText(kShape):
     
     def getSize(self, *size): 
         """
-            returns the image's size
+        Returns the image's size, using cached texture if the text hasn't changed.
         """
         if self.text == "":
-            return [0,0]
-        
-        self.texture_id, self.size = kWordBuffer().load(self.text, self.font, self.fontSize, self.fontColor)
+            return [0, 0]
+
+        self.texture_id, self.size = the_word_buffer.load(self._text, self.font, self.fontSize, self.fontColor)
 
         return self.size
+
 
     def getText(self): 
         """
@@ -3422,7 +3430,7 @@ class kText(kShape):
             self._texture_id = -1
             self._size= [0,0]
         else:
-            self._texture_id, self._size = kWordBuffer().load(self._text, self._font, self._fontSize, self._fontColor)
+            self._texture_id, self._size = the_word_buffer.load(self._text, self._font, self._fontSize, self._fontColor)
 
         vertices = [
             [0, 0],
@@ -3438,7 +3446,7 @@ class kText(kShape):
         return vertices
 
     def generateVertices(self):
-        self.texture_id, self.size = kWordBuffer().load(self.text, self.font, self.fontSize, self.fontColor)
+        self.texture_id, self.size = the_word_buffer.load(self.text, self.font, self.fontSize, self.fontColor)
 
         vertices = [
             [0, 0],
@@ -3487,7 +3495,7 @@ class kText(kShape):
         glTranslatef(self._pos[0], self._pos[1], 0)
         glTranslatef(self._pivot[0], self._pivot[1], 0)
         glRotatef(self._rot, 0, 0, 1)
-        glTranslatef(-self._pivot[0], -self._pivot[1], self._z)
+        glTranslatef(-self._pivot[0], -self._pivot[1], 0)
 
         glEnable(GL_TEXTURE_2D)
         
@@ -3517,6 +3525,7 @@ class kLabel(kRoundedRect):
     def __init__(self, label="", text=""):
         super().__init__(200, 50, 15)
         self.name = "kLabel"
+        self._ui = True 
 
         self.getPadding, self.setPadding = kNumber(self, "padding", 15)
         self.getAlignX, self.setAlignX = kValue(self, "alignX", "left")
@@ -3524,6 +3533,7 @@ class kLabel(kRoundedRect):
         self.getText, self.setText = kString(self, "text", "")
         self.getLabel, self.setLabel = kString(self, "label", label)
 
+        self.getFont, self.setFont = kValue(self, "font", kstore.font)
         self.getFontSize, self.setFontSize = kNumber(self, "fontSize", kstore.fontSize)
         self.getFontColor, self.setFontColor = kColor(self, "fontColor", kstore.fontColor)
         self.getOverflow, self.setOverflow = kValue(self, "overflow", "wrap")
@@ -3546,51 +3556,65 @@ class kLabel(kRoundedRect):
         if label != "":
             kstore.immediate = True
             kstore.scaleAnim(0)
-            self.label_drawing = drawLabel("", label)
+            self.label_drawing = kText(label)
+            self.label_drawing._ready = False
             kstore.immediate = True
             self.label_drawing.setFontSize(8)
-            self.label_drawing.setHeight(20)
-            self.label_drawing.setWidth(100)
-            self.label_drawing.setPos((self.pos[0] - self.size[0]/2 + 50  + self.padding, self.pos[1] + self.size[1]/2))
-            self.label_drawing.setAlignX("center")
-            self.label_drawing.setAlignY("center")
-            self.label_drawing.setPadding(0)
-            self.label_drawing.setLine(False)
+            self.label_drawing.setPos((self.pos[0] - self.size[0]/2 + self.padding + self.label_drawing.getWidth()/2, self.pos[1] + self.size[1]/2 + self.label_drawing.getHeight()))
+            self.label_drawing._ui = True
+            kstore.immediate=True 
             kstore.unscaleAnim()
             kstore.immediate = False
         else:
             self.label_drawing = None
+            
         kstore.scaleAnim(0)
         self._words = []
         self.setText(text)
+        if self.label != "":
+            self.label_drawing.setText(label)
         kstore.unscaleAnim()
 
-    def _resetWords(self):
-        for word in self._words:
+        # if self.label != "":
+        #     self.label_drawing.show()
+
+    def _resetWords(self, new_tokens):
+        reused_words = []
+        old_words = self._words
+
+        for i, token in enumerate(new_tokens):
+            if i < len(old_words) and old_words[i].getText() == token:
+                reused_words.append(old_words[i])
+            else:
+                if i < len(old_words):
+                    old_words[i].remove()
+                word_drawing = drawText(token)
+                word_drawing.setFontSize(self._fontSize)
+                word_drawing.setFontColor(self._fontColor)
+                word_drawing.setRot(self._rot)
+                word_drawing._ui = True
+                reused_words.append(word_drawing)
+
+        # Remove any leftover old words
+        for word in old_words[len(new_tokens):]:
             word.remove()
 
-        self._words.clear()
+        self._words = reused_words
 
     def _initText(self):
-        self._resetWords()
-
         tokens = []
-        
         lines = self._text.split("\n")
 
         for line in lines:
             i = 0
             while i < len(line):
                 if line[i] == " ":
-                    # Count consecutive spaces
                     space_count = 1
                     while i + space_count < len(line) and line[i + space_count] == " ":
                         space_count += 1
-                    for _ in range(space_count):
-                        tokens.append(" ")
+                    tokens.extend([" "] * space_count)
                     i += space_count
                 else:
-                    # Extract word
                     start = i
                     while i < len(line) and line[i] != " ":
                         i += 1
@@ -3600,17 +3624,7 @@ class kLabel(kRoundedRect):
         if tokens and tokens[-1] == "\n":
             tokens.pop()
 
-        for token in tokens:
-            if token == " ":
-                word_drawing = drawText(" ")
-            elif token == "\n":
-                word_drawing = drawText("\n")
-            else:
-                word_drawing = drawText(token)
-            word_drawing.setFontSize(self._fontSize)
-            word_drawing.setFontColor(self._fontColor)
-            word_drawing.setRot(self._rot)
-            self._words.append(word_drawing)
+        self._resetWords(tokens)
 
     def _splitIntoLines(self):        
         max_width = self._size[0] - 2 * self._padding
@@ -3646,9 +3660,9 @@ class kLabel(kRoundedRect):
         if current_line:
             lines.append(current_line)
 
-        return lines
+        self._lines = lines
 
-    def _draw(self):
+    def _draw(self):        
         super()._draw()
         if self.label_drawing is not None:
             self._drawLabel()
@@ -3657,8 +3671,8 @@ class kLabel(kRoundedRect):
     def _drawLabel(self):
         kstore.immediate = True
         kstore.scaleAnim(0)
-        self.label_drawing._setText(self._label)
-        self.label_drawing._setPos((self._pos[0] - self._size[0]/2 + 50  + self._padding, self._pos[1] + self._size[1]/2))
+        # self.label_drawing._setText(self._label)
+        self.label_drawing._setPos((self._pos[0] - self._size[0]/2 + self._padding + self.label_drawing.getWidth()/2, self._pos[1] + self._size[1]/2 + self.label_drawing.getHeight()))
         self.label_drawing._setFontColor(self._fontColor)
         kstore.immediate = False 
         kstore.unscaleAnim()
@@ -3668,13 +3682,13 @@ class kLabel(kRoundedRect):
         kstore.scaleAnim(0)
 
         self._initText()
-        lines = self._splitIntoLines()
+        self._splitIntoLines()
         max_height = self._size[1] - 2 * self._padding
 
         visible_lines = []
         used_height = 0
 
-        for line in lines:
+        for line in self._lines:
             line_height = max(word.getHeight() for word in line)
             if used_height + line_height > max_height:
                 for word in line:
@@ -3874,7 +3888,6 @@ class kInput(kLabel):
     def __init__(self, label, handler=None):
         super().__init__(label, "")
         self.name = "kInput"
-        ui_buffer.append(self)
 
         self.getHandler, self.setHandler = kValue(self, "handler", handler)
 
@@ -3897,6 +3910,7 @@ class kInput(kLabel):
         kstore.scaleAnim(0)
         kstore.immediate = True
         self._cursor_line = drawLine(0,1.5*self._fontSize)
+        self._cursor_line._ui = True
         self._cursor_line.hide()
         kstore.immediate = False 
 
@@ -3904,23 +3918,24 @@ class kInput(kLabel):
 
     def remove(self):
         super().remove()
-        ui_buffer.remove(self)
 
     def getLabel(self): 
         """
             get the label name
         """
-        selt.label_drawing.getLabel()
+        self.label_drawing.getText()
 
     def setLabel(self, label): 
         """
             set the label name
         """
-        self.label_drawing.setLabel(label)
+        self.label_drawing.setText(label)
         
     def _draw(self):
+        glEnable(GL_DEPTH_TEST)        
         super()._draw()
-        self._drawCursor()
+        # self._drawCursor()
+        glDisable(GL_DEPTH_TEST)
 
     def _onUIClick(self, x, y, button):
         self._focused = True
@@ -3951,8 +3966,9 @@ class kInput(kLabel):
 
     def _toggle_cursor_visibility(self):
         self._cursor_visible = not self._cursor_visible
-        if self._ready:
-            self._drawCursor()
+        
+        # if self._ready:
+        #     self._drawCursor()
 
     def _onUIRelease(self, x, y, button):
         if self.contains(x,y):
@@ -3994,12 +4010,9 @@ class kInput(kLabel):
             elif key == Qt.Key_Left:
                 if self._cursor_position > 0:
                     self._cursor_position -= 1
-                    self._cursor_visible = True
-                    self._updateShape()
             elif key == Qt.Key_Right:
                 if self._cursor_position < len(self._text):
                     self._cursor_position += 1
-                    self._updateShape()
             else:  
                 new_text = the_text[:self._cursor_position] + event.text() + the_text[self._cursor_position:]
 
@@ -4010,92 +4023,95 @@ class kInput(kLabel):
                     self.text = new_text
                     self._cursor_position += 1
                 else:
-                    self._setText(the_text)                
+                    self._setText(the_text)    
+
         self._draw()
 
     def _drawCursor(self):
-        if not self._cursor_visible or not self._focused:
-            kstore.immediate = True 
-            kstore.scaleAnim(0)
+        if self._cursor_position is None or not self._lines:
+            kstore.immediate = True
             self._cursor_line.hide()
-            kstore.immediate = False 
-            kstore.unscaleAnim()
+            kstore.immediate = False
             return
 
-        # Recalculate layout
-        lines = self._splitIntoLines()
+        # Step 1: Find the line and word index
+        char_index = 0
+        line_index = 0
+        word_index = 0
+        found = False
 
-        # Horizontal alignment
+        for i, line in enumerate(self._lines):
+            for j, word in enumerate(line):
+                word_text = getattr(word, "_text", " ")
+                word_len = len(word_text)
+                if char_index + word_len >= self._cursor_position:
+                    line_index = i
+                    word_index = j
+                    found = True
+                    break
+                char_index += word_len
+            if found:
+                break
+
+        line = self._lines[line_index]
+        line_height = max(word.getHeight() for word in line)
+
+        # Step 2: Calculate Y position
+        total_text_height = sum(max(word.getHeight() for word in l) for l in self._lines)
+        if self._alignY == "top":
+            y = self._pos[1] + self._size[1] / 2 - self._padding
+            for i in range(line_index):
+                y -= max(word.getHeight() for word in self._lines[i])
+            y -= line_height
+        elif self._alignY == "center":
+            y = self._pos[1] + total_text_height / 2
+            for i in range(line_index):
+                y -= max(word.getHeight() for word in self._lines[i])
+            y -= line_height
+        elif self._alignY == "bottom":
+            y = self._pos[1] - self._size[1] / 2 + self._padding
+            for i in range(line_index):
+                y += max(word.getHeight() for word in self._lines[i])
+        else:
+            y = self._pos[1] + self._size[1] / 2 - self._padding
+            for i in range(line_index):
+                y -= max(word.getHeight() for word in self._lines[i])
+            y -= line_height
+
+        # Step 3: Calculate X position
+        line_width = sum(word.getWidth() for word in line)
         if self._alignX == "left":
             x = self._pos[0] - self._size[0] / 2 + self._padding
         elif self._alignX == "center":
-            x = self._pos[0]
+            x = self._pos[0] - line_width / 2
         elif self._alignX == "right":
-            x = self._pos[0] + self._size[0] / 2 - self._padding
+            x = self._pos[0] + self._size[0] / 2 - self._padding - line_width
         else:
             x = self._pos[0] - self._size[0] / 2 + self._padding
 
-        # Vertical alignment
-        if self._alignY == "top":
-            y = self._pos[1] + self._size[1] / 2 - self._padding
-        elif self._alignY == "center":
-            y = self._pos[1] - self._fontSize/2-2
-        elif self._alignY == "bottom":
-            y = self._pos[1] - self._size[1] / 2 + self._padding
-        else:
-            y = self._pos[1] + self._size[1] / 2 - self._padding
-
-
-        # Find the line and position where the cursor should be
-        char_index = 0
-        for line, line_height in [(line, max(word.getHeight() for word in line)) for line in lines]:
-            line_width = sum(word.getWidth() for word in line)
-
-            # Horizontal alignment
-            if self._alignX == "left":
-                x = self._pos[0] - self._size[0] / 2 + self._padding
-            elif self._alignX == "center":
-                x = self._pos[0] - line_width / 2
-            elif self._alignX == "right":
-                x = self._pos[0] + self._size[0] / 2 - self._padding - line_width
-            else:
-                x = self._pos[0] - self._size[0] / 2 + self._padding
-
-            # Vertical alignment
-            if self._alignY == "top":
-                y = self._pos[1] + self._size[1] / 2 - self._padding
-            elif self._alignY == "center":
-                total_text_height = sum(max(word.getHeight() for word in line) for line in lines)
-                y = self._pos[1] + total_text_height / 2
-            elif self._alignY == "bottom":
-                y = self._pos[1] - self._size[1] / 2 + self._padding
-            else:
-                y = self._pos[1] + self._size[1] / 2 - self._padding
-
-            y -= line_height / 2
-
-            for word in line:
-                word_width = word.getWidth()
-                if char_index == self._cursor_position:
-                    # Cursor is here
-                    cursor_x = x
-                    cursor_y = y
-                    self._cursor_line.setPos(cursor_x, cursor_y)
-                    self._cursor_line.show()
-                    return
-                x += word_width
-                char_index += len(word._text) if hasattr(word, "_text") else 1  # fallback
-
-            y -= line_height / 2
-
-        kstore.immediate = True 
+        # Step 4: Add width of characters up to cursor
+        remaining = self._cursor_position - char_index
+        print(remaining)
+        
+        for word in line[:word_index + 1]:
+            word_text = getattr(word, "_text", " ")
+            for i, ch in enumerate(word_text):
+                if remaining <= 0:
+                    break
+                _, (char_width, _) = the_word_buffer.load(ch, self._font, self._fontSize, self._fontColor)
+                x += char_width
+                remaining -= 1
+            if remaining <= 0:
+                break
+        
+        
+        # Step 5: Draw the cursor
+        kstore.immediate = True
         kstore.scaleAnim(0)
-        # If cursor is at the end
         self._cursor_line.setPos(x, y)
         self._cursor_line.show()
-        kstore.immediate = False 
+        kstore.immediate = False
         kstore.unscaleAnim()
-
 class kGrid:
     def __init__(self, width, dx, height, dy):
         self.width = width 
@@ -4236,6 +4252,7 @@ class kMainWindow(QOpenGLWidget):
         self.closeButton.setPassiveColor(255,0,0)
         self.closeButton.setFontColor(255,255,255)
         self.closeButton.setHoverColor(200,0,0)
+        self.closeButton._ui = True 
 
         kstore.immediate = False
         kstore.unscaleAnim()
@@ -4250,6 +4267,8 @@ class kMainWindow(QOpenGLWidget):
         self.fps_label.setPos(int(kstore.size[0]) - 70, kstore.size[1] - 15)
         self.fps_label.setFontColor(255,255,255,150)
         self.fps_label.setRot(0)
+        self.fps_label._ui = True 
+
         kstore.immediate = False
         kstore.unscaleAnim()
 
@@ -4287,6 +4306,7 @@ class kMainWindow(QOpenGLWidget):
         glEnable(GL_MULTISAMPLE)
         glDisable(GL_DEPTH_TEST)
         glEnable(GL_BLEND)
+
         if kstore.color_mixing == "additive":
             glBlendFunc(GL_SRC_ALPHA, GL_ONE)
         else:
@@ -4302,36 +4322,20 @@ class kMainWindow(QOpenGLWidget):
         glClearColor(*[c/255 for c in color])
 
     def paintGL(self):
-        glPushAttrib(GL_ALL_ATTRIB_BITS)
-        glMatrixMode(GL_PROJECTION)
-        glPushMatrix()
-        glMatrixMode(GL_MODELVIEW)
-        glPushMatrix()
-
-        glShadeModel(GL_FLAT)
-        glEnable(GL_POLYGON_SMOOTH)
-        glEnable(GL_LINE_SMOOTH)
-        glEnable(GL_MULTISAMPLE)
-        glDisable(GL_DEPTH_TEST)
-        glEnable(GL_BLEND)
-        if kstore.color_mixing == "additive":
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE)
-        else:
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         self.clearGL()
+
         glLoadIdentity()
         glTranslated(0, 0, 0)
         for shape in shape_buffer:
-            if shape._drawGL is not None:
+            if shape._drawGL is not None and not shape._ui:
+                shape._drawGL()
+
+        for shape in shape_buffer:
+            if shape._drawGL is not None and shape._ui:
                 shape._drawGL()
 
         if kstore.cursor is not None:
             kstore.cursor._drawGL()
-
-        glPopMatrix()
-        glMatrixMode(GL_PROJECTION)
-        glPopMatrix()
-        glPopAttrib()
 
         self.updateFps()
 
@@ -4378,7 +4382,6 @@ class kMainWindow(QOpenGLWidget):
         width = int(kstore.window_size[0])
         height = int(kstore.window_size[1])
 
-        super().resize(width+1, height) 
         super().resize(width, height) 
 
         self.pixmap = QPixmap(width,height)
@@ -4405,14 +4408,8 @@ class kMainWindow(QOpenGLWidget):
         self.record = value
 
     def captureFrame(self):
-        # screen = QApplication.primaryScreen()
-        # screenshot = screen.grabWindow(self.winId())
-
-
         screenshot = self.grabFramebuffer()
         return screenshot
-    
-        # return screenshot.toImage()
 
     def saveAsPng(self, filename):
         screenshot = self.captureFrame()
@@ -4503,9 +4500,9 @@ class kMainWindow(QOpenGLWidget):
             self.close()
         
         key_text = event.text()
-        for ui_element in ui_buffer:
-            if hasattr(ui_element, "_keyPressEvent"):
-                ui_element._keyPressEvent(event)
+        for shape in shape_buffer:
+            if hasattr(shape, "_keyPressEvent"):
+                shape._keyPressEvent(event)
 
         self.key_store.add(key_text)
         for handler in on_key_pressed_handlers:
@@ -4544,12 +4541,6 @@ class kMainWindow(QOpenGLWidget):
         pos = event.pos()
         pos = self.translateMousePos([pos.x(), pos.y()])
 
-        for ui_element in ui_buffer:
-            if ui_element._onMousePress and ui_element.contains(*pos):
-                kstore.immediate = True
-                ui_element._onMousePress(*pos, button_text)
-                kstore.immediate = False 
-
         for shape in shape_buffer:
             if shape._onMousePress and shape.contains(*pos):
                 kstore.immediate = True
@@ -4577,12 +4568,6 @@ class kMainWindow(QOpenGLWidget):
                 shape._onMouseRelease(x, y, button_text)
                 kstore.immediate = False 
 
-        for ui_element in ui_buffer:
-            if ui_element._onMouseRelease:
-                kstore.immediate = True
-                ui_element._onMouseRelease(x, y, button_text)
-                kstore.immediate = False 
-
         self.button_store.remove(button_text)
         for handler in on_mouse_pressed_handlers:
             kstore.immediate = True
@@ -4602,25 +4587,6 @@ class kMainWindow(QOpenGLWidget):
         x = pos[0]
         y = pos[1]
         self.mouse_pos = pos 
-        
-        for ui_element in ui_buffer:
-            if not ui_element._onMouseEnter and not ui_element._onMouseExit:
-                continue 
-            
-            contains = ui_element.contains(*pos)
-
-            if contains and not ui_element._mouse_over:
-                ui_element._mouse_over = True 
-                if ui_element._onMouseEnter:
-                    kstore.immediate = True
-                    ui_element._onMouseEnter(x,y)
-                    kstore.immediate = False
-            elif not contains and ui_element._mouse_over:
-                ui_element._mouse_over = False 
-                if ui_element._onMouseExit:
-                    kstore.immediate = True
-                    ui_element._onMouseExit(x,y)
-                    kstore.immediate = False
 
         for shape in shape_buffer:
             if not shape._onMouseEnter and not shape._onMouseExit:
@@ -6074,14 +6040,6 @@ def _clear():
         shape = shape_buffer[i]
         if shape._ready:
             shape_buffer.pop(i)
-        else:
-            i = i + 1
-
-    i = 0
-    while i < len(ui_buffer):
-        shape = ui_buffer[i]
-        if shape._ready:
-            ui_buffer.pop(i)
         else:
             i = i + 1
 
