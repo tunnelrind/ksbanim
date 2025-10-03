@@ -409,7 +409,6 @@ action_queue = kActionQueue()
 class kStore:
     def __init__(self):
         self.app = None 
-        self.pixmap = None 
         self.size = [1000, 1000]
         self.window_size = [1000,1000]
         self.pos = [500,500]
@@ -1157,10 +1156,6 @@ class kShape(ABC):
         self._vbo_triangle = None
         self._idGL = None
         self._ui = False 
-
-        self._pixmap = None
-        self._painter = None 
-        self._transform = QTransform()
         
         self.getReady, self.setReady = kValue(self, "ready", False, update=False)
         
@@ -4358,6 +4353,9 @@ class kMainWindow(QOpenGLWidget):
         glTranslated(0, 0, 0)
         
     def resizeGL(self, width, height): 
+        self.gl_width = width 
+        self.gl_height = height 
+
         glViewport(0, 0, width, height)
 
         glMatrixMode(GL_PROJECTION)   
@@ -4380,12 +4378,8 @@ class kMainWindow(QOpenGLWidget):
 
     def resize(self):
         width = int(kstore.window_size[0])
-        height = int(kstore.window_size[1])
-
+        height = int(kstore.window_size[1])        
         super().resize(width, height) 
-
-        self.pixmap = QPixmap(width,height)
-        self.pixmap.fill(QColor(*kstore.backgroundColor))
 
         if self.fps_label is not None:
             self.fps_label.move(width - 100, 0)
@@ -4398,6 +4392,22 @@ class kMainWindow(QOpenGLWidget):
 
         self.center()
 
+    def debug(self):
+        width = int(kstore.window_size[0])
+        height = int(kstore.window_size[1])
+
+        screen = QDesktopWidget().availableGeometry()
+        max_height = screen.height()
+        max_width = screen.width()
+        
+        print("requested width: ", width)
+        print("requested height", height)
+        print("dpi: ", self.devicePixelRatioF())
+        print("max_width: ", max_width)
+        print("max_height: ", max_height)
+        print("logical size: ", kstore.size)
+        print("gl_size: ", self.gl_width, self.gl_height)
+        
     def center(self):
         qr = self.frameGeometry()
         cp = QDesktopWidget().availableGeometry().center()
@@ -4896,6 +4906,7 @@ def setWindowSize(*size):
     kstore.window_size = size
 
     kstore.window.resize()
+    kstore.window.debug()
 
 def getWindowSize(*size):
     """
