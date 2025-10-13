@@ -3290,6 +3290,9 @@ class kWordBuffer:
         painter = QPainter(image)
         painter.setFont(font)
         painter.setPen(QColor(*font_color))
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
+
         painter.drawText(-rect.x(), -rect.y(), word)
         painter.end()
 
@@ -3511,7 +3514,6 @@ class kLabel(kRoundedRect):
         self.getAlignX, self.setAlignX = kValue(self, "alignX", "left")
         self.getAlignY, self.setAlignY = kValue(self, "alignY", "center")
         self.getText, self.setText = kString(self, "text", "")
-        self.getLabel, self.setLabel = kString(self, "label", label)
 
         self.getFont, self.setFont = kValue(self, "font", kstore.font)
         self.getFontSize, self.setFontSize = kNumber(self, "fontSize", kstore.fontSize)
@@ -3550,13 +3552,24 @@ class kLabel(kRoundedRect):
         kstore.scaleAnim(0)
         self._words = []
         self.setText(text)
-        if self.label != "":
+        if label != "":
             self.label_drawing.show()
         kstore.unscaleAnim()
 
-        # if self.label != "":
-        #     self.label_drawing.show()
+    def getLabel(self): 
+        """
+            get the label name
+        """
+        self.label_drawing.getText()
 
+    def setLabel(self, label): 
+        """
+            set the label name
+        """
+        kstore.scaleAnim(0)
+        self.label_drawing.setText(label)
+        kstore.unscaleAnim()
+        
     def _resetWords(self, new_tokens):
         reused_words = []
         old_words = self._words
@@ -3650,7 +3663,6 @@ class kLabel(kRoundedRect):
     def _drawLabel(self):
         kstore.pushImmediate()
         kstore.scaleAnim(0)
-        # self.label_drawing._setText(self._label)
         self.label_drawing._setPos((self._pos[0] - self._size[0]/2 + self._padding + self.label_drawing.getWidth()/2, self._pos[1] + self._size[1]/2 + self.label_drawing.getHeight()))
         self.label_drawing._setFontColor(self._fontColor)
         kstore.pullImmediate() 
@@ -3897,18 +3909,6 @@ class kInput(kLabel):
 
     def remove(self):
         super().remove()
-
-    def getLabel(self): 
-        """
-            get the label name
-        """
-        self.label_drawing.getText()
-
-    def setLabel(self, label): 
-        """
-            set the label name
-        """
-        self.label_drawing.setText(label)
         
     def _draw(self):
         glEnable(GL_DEPTH_TEST)        
