@@ -536,6 +536,8 @@ class kStore:
     def pullImmediate(self):
         if len(self.time_stack):
             self.milliseconds = self.time_stack.pop()
+        else:
+            print("pull immediate without push")
 
     def setPen(self, value):
         self.pendown = value 
@@ -3540,6 +3542,7 @@ class kLabel(kRoundedRect):
             self.label_drawing.setFontSize(8)
             self.label_drawing.setPos((self.pos[0] - self.size[0]/2 + self.padding + self.label_drawing.getWidth()/2, self.pos[1] + self.size[1]/2 + self.label_drawing.getHeight()))
             self.label_drawing._ui = True
+            self.label_drawing.hide()    
             kstore.unscaleAnim()
             kstore.pullImmediate()
         else:
@@ -3549,7 +3552,7 @@ class kLabel(kRoundedRect):
         self._words = []
         self.setText(text)
         if self.label != "":
-            self.label_drawing.setText(label)
+            self.label_drawing.show()
         kstore.unscaleAnim()
 
         # if self.label != "":
@@ -3911,7 +3914,7 @@ class kInput(kLabel):
     def _draw(self):
         glEnable(GL_DEPTH_TEST)        
         super()._draw()
-        # self._drawCursor()
+        self._drawCursor()
         glDisable(GL_DEPTH_TEST)
 
     def _onUIClick(self, x, y, button):
@@ -3944,8 +3947,8 @@ class kInput(kLabel):
     def _toggle_cursor_visibility(self):
         self._cursor_visible = not self._cursor_visible
         
-        # if self._ready:
-        #     self._drawCursor()
+        if self._ready:
+            self._drawCursor()
 
     def _onUIRelease(self, x, y, button):
         if self.contains(x,y):
@@ -4004,6 +4007,7 @@ class kInput(kLabel):
         self._draw()
 
     def _drawCursor(self):
+        return 
         if self._cursor_position is None or not self._lines:
             kstore.pushImmediate()
             self._cursor_line.hide()
