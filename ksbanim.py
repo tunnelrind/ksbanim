@@ -4220,7 +4220,7 @@ class kMainWindow(QOpenGLWidget):
             kstore.cursor._draw()
 
     def getScaleFactors(self):
-        device_pixel_ratio = self.devicePixelRatioF()  # or from QWindow/QScreen
+        device_pixel_ratio = 1.0 #self.devicePixelRatioF()  # or from QWindow/QScreen
 
         scale_factor_x = kstore.size[0] / (kstore.window_size[0] * device_pixel_ratio)
         scale_factor_y = kstore.size[1] / (kstore.window_size[1] * device_pixel_ratio)
