@@ -3278,10 +3278,9 @@ class kWordBuffer:
         font = QFont(font, int(font_size))
         metrics = QFontMetrics(font)
         rect = metrics.boundingRect(word)
-        width = rect.width()
+        width = metrics.horizontalAdvance(word)  # Includes trailing spaces
         height = rect.height()
 
-        
         if width <= 0:
             width = metrics.horizontalAdvance(word)
 
@@ -4006,60 +4005,37 @@ class kInput(kLabel):
 
         self._draw()
 
-    def _drawCursor(self):
-        return 
-        if self._cursor_position is None or not self._lines:
+    def _drawCursor(self): 
+        if (self._cursor_visible == 0 or not self._lines) or not self._focused:
+            kstore.scaleAnim(0)
             kstore.pushImmediate()
             self._cursor_line.hide()
             kstore.pullImmediate()
+            kstore.unscaleAnim()
             return
 
-        # Step 1: Find the line and word index
-        char_index = 0
-        line_index = 0
-        word_index = 0
-        found = False
-
-        for i, line in enumerate(self._lines):
-            for j, word in enumerate(line):
-                word_text = getattr(word, "_text", " ")
-                word_len = len(word_text)
-                if char_index + word_len >= self._cursor_position:
-                    line_index = i
-                    word_index = j
-                    found = True
-                    break
-                char_index += word_len
-            if found:
-                break
-
-        line = self._lines[line_index]
-        line_height = max(word.getHeight() for word in line)
+        line_height = max(word.getHeight() for word in self._lines[0])
 
         # Step 2: Calculate Y position
         total_text_height = sum(max(word.getHeight() for word in l) for l in self._lines)
         if self._alignY == "top":
             y = self._pos[1] + self._size[1] / 2 - self._padding
-            for i in range(line_index):
-                y -= max(word.getHeight() for word in self._lines[i])
             y -= line_height
         elif self._alignY == "center":
             y = self._pos[1] + total_text_height / 2
-            for i in range(line_index):
-                y -= max(word.getHeight() for word in self._lines[i])
             y -= line_height
         elif self._alignY == "bottom":
             y = self._pos[1] - self._size[1] / 2 + self._padding
-            for i in range(line_index):
-                y += max(word.getHeight() for word in self._lines[i])
         else:
             y = self._pos[1] + self._size[1] / 2 - self._padding
-            for i in range(line_index):
-                y -= max(word.getHeight() for word in self._lines[i])
+    
             y -= line_height
 
         # Step 3: Calculate X position
-        line_width = sum(word.getWidth() for word in line)
+        line_width = 0
+        if self._text != "":
+            _, (line_width, _) = the_word_buffer.load(self._text, self._font, self._fontSize, self._fontColor)
+
         if self._alignX == "left":
             x = self._pos[0] - self._size[0] / 2 + self._padding
         elif self._alignX == "center":
@@ -4069,21 +4045,14 @@ class kInput(kLabel):
         else:
             x = self._pos[0] - self._size[0] / 2 + self._padding
 
-        # Step 4: Add width of characters up to cursor
-        remaining = self._cursor_position - char_index
-        print(remaining)
-        
-        for word in line[:word_index + 1]:
-            word_text = getattr(word, "_text", " ")
-            for i, ch in enumerate(word_text):
-                if remaining <= 0:
-                    break
-                _, (char_width, _) = the_word_buffer.load(ch, self._font, self._fontSize, self._fontColor)
-                x += char_width
-                remaining -= 1
-            if remaining <= 0:
-                break
-        
+        chars = self._text[:self._cursor_position]
+
+        char_width = 0
+
+        if chars != "" and len(chars) > 0:
+            _, (char_width, _) = the_word_buffer.load(chars, self._font, self._fontSize, self._fontColor)
+   
+        x += char_width
         
         # Step 5: Draw the cursor
         kstore.pushImmediate()
@@ -4092,6 +4061,7 @@ class kInput(kLabel):
         self._cursor_line.show()
         kstore.pullImmediate()
         kstore.unscaleAnim()
+
 class kGrid:
     def __init__(self, width, dx, height, dy):
         self.width = width 
