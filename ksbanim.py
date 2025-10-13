@@ -145,11 +145,7 @@ class kBreak:
         
 class kInterpolator:
     def __init__(self, end_value, getter, setter):
-        self.immediate = kstore.immediate
-        if self.immediate:
-            self.begin_time = kstore.elapsed_timer.elapsed()
-        else:
-            self.begin_time = kstore.milliseconds
+        self.begin_time = kstore.milliseconds
         self.end_time = kstore.animation + self.begin_time
         self.dt = self.end_time - self.begin_time
         self.end_value = end_value
@@ -178,11 +174,7 @@ class kInterpolator:
    
 class kShapeMatcher:
     def __init__(self, end_value, getter, setter):
-        self.immediate = kstore.immediate
-        if self.immediate:
-            self.begin_time = kstore.elapsed_timer.elapsed()
-        else:
-            self.begin_time = kstore.milliseconds
+        self.begin_time = kstore.milliseconds
         self.end_time = kstore.animation + self.begin_time
         self.dt = self.end_time - self.begin_time
         self.end_value = end_value
@@ -296,11 +288,7 @@ class kShapeMatcher:
 
 class kLoop:
     def __init__(self, loop_function, milliseconds):
-        self.immediate = kstore.immediate
-        if self.immediate:
-            self.begin_time = 0
-        else:
-            self.begin_time = kstore.milliseconds
+        self.begin_time = kstore.milliseconds
         self.loop_function = loop_function 
         self.milliseconds = milliseconds
         self.old_time = kstore.elapsed_timer.elapsed()
@@ -327,11 +315,7 @@ class kMessage:
     def __init__(self, message):
         self.message = message
 
-        self.immediate = kstore.immediate
-        if self.immediate:
-            self.begin_time = kstore.elapsed_timer.elapsed()
-        else:
-            self.begin_time = kstore.milliseconds
+        self.begin_time = kstore.milliseconds
             
     def process(self, the_time):
         if self.begin_time <= the_time:
@@ -352,11 +336,7 @@ class kWait:
     
 class kAction:
     def __init__(self, action_function):
-        self.immediate = kstore.immediate
-        if self.immediate:
-            self.begin_time = kstore.elapsed_timer.elapsed()
-        else:
-            self.begin_time = kstore.milliseconds
+        self.begin_time = kstore.milliseconds
         
         self.action_function = action_function
     
@@ -369,11 +349,7 @@ class kAction:
 
 class kSetter:
     def __init__(self, action_function, *args, delay=0):
-        self.immediate = kstore.immediate
-        if self.immediate:
-            self.begin_time = kstore.elapsed_timer.elapsed() + delay
-        else:
-            self.begin_time = kstore.milliseconds + delay
+        self.begin_time = kstore.milliseconds + delay
 
         self.action_function = action_function
         self.args = args
@@ -416,6 +392,7 @@ class kStore:
         self.timer = None 
         self.dt = round(1000/60)
         self.milliseconds = 0
+        self.time_stack = []
         self.delay = 250
         self.animation = 250
         self.anim_stack = []
@@ -433,7 +410,6 @@ class kStore:
         self.backgroundColor = [0,0,0,255]
         self.window = None 
         self.grid = None 
-        self.immediate = False
         self.pendown = False 
         self.color_mixing = "subtractive"
 
@@ -552,6 +528,14 @@ class kStore:
 
         self.animation = latest[0]
         self.delay = latest[1]
+
+    def pushImmediate(self):
+        self.time_stack.append(kstore.milliseconds)
+        kstore.milliseconds = kstore.elapsed_timer.elapsed()
+
+    def pullImmediate(self):
+        if len(self.time_stack):
+            self.milliseconds = self.time_stack.pop()
 
     def setPen(self, value):
         self.pendown = value 
@@ -3549,17 +3533,15 @@ class kLabel(kRoundedRect):
         self.initLine(True)
 
         if label != "":
-            kstore.immediate = True
+            kstore.pushImmediate()
             kstore.scaleAnim(0)
             self.label_drawing = kText(label)
             self.label_drawing._ready = False
-            kstore.immediate = True
             self.label_drawing.setFontSize(8)
             self.label_drawing.setPos((self.pos[0] - self.size[0]/2 + self.padding + self.label_drawing.getWidth()/2, self.pos[1] + self.size[1]/2 + self.label_drawing.getHeight()))
             self.label_drawing._ui = True
-            kstore.immediate=True 
             kstore.unscaleAnim()
-            kstore.immediate = False
+            kstore.pullImmediate()
         else:
             self.label_drawing = None
             
@@ -3664,16 +3646,16 @@ class kLabel(kRoundedRect):
         self._drawText()
 
     def _drawLabel(self):
-        kstore.immediate = True
+        kstore.pushImmediate()
         kstore.scaleAnim(0)
         # self.label_drawing._setText(self._label)
         self.label_drawing._setPos((self._pos[0] - self._size[0]/2 + self._padding + self.label_drawing.getWidth()/2, self._pos[1] + self._size[1]/2 + self.label_drawing.getHeight()))
         self.label_drawing._setFontColor(self._fontColor)
-        kstore.immediate = False 
+        kstore.pullImmediate() 
         kstore.unscaleAnim()
 
     def _drawText(self):
-        kstore.immediate = True
+        kstore.pushImmediate()
         kstore.scaleAnim(0)
 
         self._initText()
@@ -3727,7 +3709,7 @@ class kLabel(kRoundedRect):
             y -= line_height / 2  # prepare for next line
 
         kstore.unscaleAnim()
-        kstore.immediate = False
+        kstore.pullImmediate()
 
     def getText(self): 
         """
@@ -3852,12 +3834,12 @@ class kButton(kLabel):
 
     def _onUIClick(self, x, y, button):
         kstore.scaleAnim(0)
-        kstore.immediate = True
+        kstore.pushImmediate()
         self.setFillColor(self._focusColor)
         kstore.unscaleAnim()
 
         self._handler()
-        kstore.immediate = False 
+        kstore.pullImmediate()
 
     def _onUIRelease(self, x, y, button):
         if self.contains(x,y):
@@ -3867,16 +3849,16 @@ class kButton(kLabel):
 
     def _onUIMouseEnter(self, x, y):
         kstore.scaleAnim(0)
-        kstore.immediate = True
+        kstore.pushImmediate()
         self.setFillColor(self._hoverColor)
-        kstore.immediate = False
+        kstore.pullImmediate()
         kstore.unscaleAnim()
 
     def _onUIMouseExit(self, x, y):
         kstore.scaleAnim(0)
-        kstore.immediate = True
+        kstore.pushImmediate()
         self.setFillColor(self._passiveColor)
-        kstore.immediate = False
+        kstore.pullImmediate()
         kstore.unscaleAnim()
 
 class kInput(kLabel):
@@ -3903,11 +3885,11 @@ class kInput(kLabel):
         self._blink_timer.start(500)
 
         kstore.scaleAnim(0)
-        kstore.immediate = True
+        kstore.pushImmediate()
         self._cursor_line = drawLine(0,1.5*self._fontSize)
         self._cursor_line._ui = True
         self._cursor_line.hide()
-        kstore.immediate = False 
+        kstore.pullImmediate()
 
         kstore.unscaleAnim()
 
@@ -3937,26 +3919,26 @@ class kInput(kLabel):
         self._cursor_position = len(str(self._text))
         
         kstore.scaleAnim(0)
-        kstore.immediate = True
+        kstore.pushImmediate()
         self.setFillColor(self._focusColor)
         kstore.unscaleAnim()
 
-        kstore.immediate = False    
+        kstore.pushImmediate()
         
     def _onUIMouseEnter(self, x, y):
         if not self._focused:
             kstore.scaleAnim(0)
-            kstore.immediate = True
+            kstore.pushImmediate()
             self.setFillColor(self._hoverColor)
-            kstore.immediate = False
+            kstore.pullImmediate()
             kstore.unscaleAnim()
 
     def _onUIMouseExit(self, x, y):
         if not self._focused:
             kstore.scaleAnim(0)
-            kstore.immediate = True
+            kstore.pushImmediate()
             self.setFillColor(self._passiveColor)
-            kstore.immediate = False
+            kstore.pullImmediate()
             kstore.unscaleAnim()
 
     def _toggle_cursor_visibility(self):
@@ -3974,13 +3956,12 @@ class kInput(kLabel):
 
     def _emit(self):
         if self._handler:
-            kstore.immediate = True
+            kstore.pushImmediate()
             self._handler(str(self._text))
             self._focused = False 
             kstore.scaleAnim(0)
-            kstore.immediate = True
             self.setFillColor(self._passiveColor)
-            kstore.immediate = False
+            kstore.pullImmediate()
             kstore.unscaleAnim()
 
     def _keyPressEvent(self, event):
@@ -4024,9 +4005,9 @@ class kInput(kLabel):
 
     def _drawCursor(self):
         if self._cursor_position is None or not self._lines:
-            kstore.immediate = True
+            kstore.pushImmediate()
             self._cursor_line.hide()
-            kstore.immediate = False
+            kstore.pullImmediate()
             return
 
         # Step 1: Find the line and word index
@@ -4101,11 +4082,11 @@ class kInput(kLabel):
         
         
         # Step 5: Draw the cursor
-        kstore.immediate = True
+        kstore.pushImmediate()
         kstore.scaleAnim(0)
         self._cursor_line.setPos(x, y)
         self._cursor_line.show()
-        kstore.immediate = False
+        kstore.pullImmediate()
         kstore.unscaleAnim()
 class kGrid:
     def __init__(self, width, dx, height, dy):
@@ -4137,12 +4118,12 @@ class kGrid:
         self.lines.clear()
         
     def draw(self):
-        kstore.immediate = True
+        kstore.pushImmediate()
         kstore.scaleAnim(0)
         self.clear()
         self.createLabels()
         self.drawLines()
-        kstore.immediate = False 
+        kstore.pullImmediate()
         kstore.unscaleAnim()
     
     def drawLine(self, x,y,angle):
@@ -4232,10 +4213,9 @@ class kMainWindow(QOpenGLWidget):
 
         old_rot = kstore.rot
         kstore.rot = 0
-        kstore.immediate = True
+        kstore.pushImmediate()
         kstore.scaleAnim(0)
         self.closeButton = drawButton("x", self.close)
-        kstore.immediate = True
         self.closeButton.setPos(kstore.size[0]-15, kstore.size[1]-15)
         self.closeButton.setSize(30,30)
         self.closeButton.setAlignX("center")
@@ -4249,14 +4229,14 @@ class kMainWindow(QOpenGLWidget):
         self.closeButton.setHoverColor(200,0,0)
         self.closeButton._ui = True 
 
-        kstore.immediate = False
+        kstore.pullImmediate()
         kstore.unscaleAnim()
         kstore.rot = old_rot
 
         self.initFps()
 
     def initFps(self):
-        kstore.immediate = True
+        kstore.pushImmediate()
         kstore.scaleAnim(0)
         self.fps_label = drawText("fps --")
         self.fps_label.setPos(int(kstore.size[0]) - 70, kstore.size[1] - 15)
@@ -4264,7 +4244,7 @@ class kMainWindow(QOpenGLWidget):
         self.fps_label.setRot(0)
         self.fps_label._ui = True 
 
-        kstore.immediate = False
+        kstore.pullImmediate()
         kstore.unscaleAnim()
 
     def updateFps(self):
@@ -4277,9 +4257,9 @@ class kMainWindow(QOpenGLWidget):
             fps = 1000*len(self.fps_buffer)/(self.fps_buffer[-1] - self.fps_buffer[0])
 
             if self.fps_label is not None:
-                kstore.immediate = True
+                kstore.pushImmediate()
                 self.fps_label.setText(f"fps {fps:.0f}")
-                kstore.immediate = False
+                kstore.pullImmediate()
         else:
             self.fps_buffer.append(current_time)
         
@@ -4553,15 +4533,15 @@ class kMainWindow(QOpenGLWidget):
 
         for shape in shape_buffer:
             if shape._onMousePress and shape.contains(*pos):
-                kstore.immediate = True
+                kstore.pushImmediate()
                 shape._onMousePress(*pos, button_text)
-                kstore.immediate = False 
+                kstore.pullImmediate() 
 
         self.button_store.add(button_text)
         for handler in on_mouse_pressed_handlers:
-            kstore.immediate = True
+            kstore.pushImmediate()
             handler[0](*pos, button_text)
-            kstore.immediate = False
+            kstore.pullImmediate()
 
     def mouseReleaseEvent(self, event):
         button = event.button()
@@ -4574,15 +4554,15 @@ class kMainWindow(QOpenGLWidget):
         for shape in shape_buffer:
             if shape._onMouseRelease:
                
-                kstore.immediate = True
+                kstore.pushImmediate()
                 shape._onMouseRelease(x, y, button_text)
-                kstore.immediate = False 
+                kstore.pullImmediate()
 
         self.button_store.remove(button_text)
         for handler in on_mouse_pressed_handlers:
-            kstore.immediate = True
+            kstore.pushImmediate()
             handler[0](x, y, button_text)
-            kstore.immediate = False 
+            kstore.pullImmediate()
 
     def translateMousePos(self, pos):
         x = pos[0]
@@ -4606,20 +4586,20 @@ class kMainWindow(QOpenGLWidget):
             if contains and not shape._mouse_over:
                 shape._mouse_over = True 
                 if shape._onMouseEnter is not None:
-                    kstore.immediate = True
+                    kstore.pushImmediate()
                     shape._onMouseEnter(x,y)
-                    kstore.immediate = False
+                    kstore.pullImmediate()
             elif not contains and shape._mouse_over:
                 shape._mouse_over = False 
                 if shape._onMouseExit is not None:
-                    kstore.immediate = True
+                    kstore.pushImmediate()
                     shape._onMouseExit(x,y)
-                    kstore.immediate = False
+                    kstore.pullImmediate()
 
         for handler in on_mouse_moved_handlers:
-            kstore.immediate = True
+            kstore.pushImmediate()
             handler[0](x,y)
-            kstore.immediate = False
+            kstore.pullImmediate()
 
     def isButtonPressed(self, button):
         return button in self.button_store
@@ -5574,11 +5554,11 @@ def onTick(tick_function, milliseconds=0):
         onTick(loop, 100) *# draws one circle every 100 ms*
     """
 
-    kstore.immediate = True
+    kstore.pushImmediate()
     kstore.scaleAnim(0)
     action_queue.add(kLoop(tick_function, max(0, milliseconds)))
     kstore.unscaleAnim()
-    kstore.immediate = False
+    kstore.pullImmediate()
     
 def removeOnTick(tick_function):
     """
@@ -5612,12 +5592,12 @@ def onKeyPress(handler_function, key=None):
         onKeyPress(print, "a") *# only executes if a was pressed*
     """
     def submit(the_key):
-        kstore.immediate = True
+        kstore.pushImmediate()
         if key is not None and the_key == key:                  
             handler_function(the_key)
         elif key is None:
             handler_function(the_key)
-        kstore.immediate = False
+        kstore.pullImmediate()
 
     on_key_pressed_handlers.append((submit, key, handler_function))
 
@@ -5646,12 +5626,12 @@ def onKeyRelease(handler_function, key=None):
         onKeyRelease(print, "a") *# only executes if a was released*
     """
     def submit(the_key):
-        kstore.immediate = True
+        kstore.pushImmediate()
         if key is not None and the_key == key:                  
             handler_function(the_key)
         elif key is None:
             handler_function(the_key)
-        kstore.immediate = False 
+        kstore.pushImmediate()
 
     on_key_released_handlers.append((submit, key, handler_function))
 
@@ -5688,12 +5668,12 @@ def onMousePress(handler_function, button=None):
         onMousePress(button_press, "left") *# only executes if the left button was pressed*
     """
     def submit(x, y, the_button):
-        kstore.immediate = True
+        kstore.pushImmediate()
         if button is not None and the_button == button:                  
             handler_function(x, y, the_button)
         elif button is None:
             handler_function(x, y, the_button)
-        kstore.immediate = False 
+        kstore.pullImmediate()
 
     on_mouse_pressed_handlers.append((submit, button , handler_function))
 
@@ -5727,12 +5707,12 @@ def onMouseRelease(handler_function, button=None):
         onMouseRelease(button_release, "left") *# only executes if the left button was released*
     """
     def submit(x, y, the_button):
-        kstore.immediate = True 
+        kstore.pushImmediate() 
         if button is not None and the_button == button:                  
             handler_function(x,y, the_button)
         elif button is None:
             handler_function(x, y, the_button)
-        kstore.immediate = False 
+        kstore.pullImmediate()
 
     on_mouse_released_handlers.append((submit, button, handler_function))
     return submit
@@ -5763,9 +5743,9 @@ def onMouseMoved(handler_function):
     """
 
     def submit(x,y):
-        kstore.immediate = True 
+        kstore.pushImmediate() 
         handler_function(x,y)
-        kstore.immediate = False 
+        kstore.pushImmediate()
 
     on_mouse_moved_handlers.append((submit, handler_function))
 
