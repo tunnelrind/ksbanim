@@ -5,7 +5,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 setup(
     name='ksbanim',
-    version='1.2.8',
+    version='1.2.9',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',

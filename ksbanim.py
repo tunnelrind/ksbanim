@@ -3570,7 +3570,7 @@ class kLabel(kRoundedRect):
             set the label name
         """
         kstore.scaleAnim(0)
-        self.label_drawing.setText(label)
+        self.label_drawing.setText(str(label))
         kstore.unscaleAnim()
         
     def _resetWords(self, new_tokens):
