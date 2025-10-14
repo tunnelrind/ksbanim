@@ -405,7 +405,7 @@ class kStore:
         self.cursor = None 
         self.draw_cursor = True 
         self.fontSize = 12 
-        self.fontColor = [255,200,50, 255]
+        self.fontColor = [250,250,250, 255]
         self.font = "Arial"
         self.backgroundColor = [0,0,0,255]
         self.window = None 
@@ -3407,6 +3407,8 @@ class kText(kShape):
         pass
 
     def _generateVertices(self):
+        if self._text == "1":
+            print(self._fontColor)
         self._fillMode = GL_TRIANGLE_FAN
         
         if self._text == "":
@@ -3540,7 +3542,8 @@ class kLabel(kRoundedRect):
             kstore.scaleAnim(0)
             self.label_drawing = kText(label)
             self.label_drawing._ready = False
-            self.label_drawing.setFontSize(8)
+            self.label_drawing.setFontColor(self._lineColor)
+            self.label_drawing.setFontSize(self._fontSize*2//3)
             self.label_drawing.setPos((self.pos[0] - self.size[0]/2 + self.padding + self.label_drawing.getWidth()/2, self.pos[1] + self.size[1]/2 + self.label_drawing.getHeight()))
             self.label_drawing._ui = True
             self.label_drawing.hide()    
@@ -3664,7 +3667,8 @@ class kLabel(kRoundedRect):
         kstore.pushImmediate()
         kstore.scaleAnim(0)
         self.label_drawing._setPos((self._pos[0] - self._size[0]/2 + self._padding + self.label_drawing.getWidth()/2, self._pos[1] + self._size[1]/2 + self.label_drawing.getHeight()))
-        self.label_drawing._setFontColor(self._fontColor)
+        self.label_drawing._setFontColor(self._lineColor)
+        self.label_drawing._setFontSize(self._fontSize*2//3)
         kstore.pullImmediate() 
         kstore.unscaleAnim()
 
@@ -3680,6 +3684,11 @@ class kLabel(kRoundedRect):
         used_height = 0
 
         for line in self._lines:
+            for word in line:
+                word.setFontColor(self._fontColor)
+                word.setFontSize(self._fontSize)
+                word.setFont(self._font)
+
             line_height = max(word.getHeight() for word in line)
             if used_height + line_height > max_height:
                 for word in line:
@@ -3700,6 +3709,7 @@ class kLabel(kRoundedRect):
         else:
             y = self._pos[1] + self._size[1] / 2 - self._padding  # default to top
 
+        
         for line, line_height in visible_lines:
             line_width = sum(word.getWidth() for word in line)
 
@@ -3901,6 +3911,7 @@ class kInput(kLabel):
         kstore.scaleAnim(0)
         kstore.pushImmediate()
         self._cursor_line = drawLine(0,1.5*self._fontSize)
+        self._cursor_line.setColor(self._fontColor)
         self._cursor_line._ui = True
         self._cursor_line.hide()
         kstore.pullImmediate()
@@ -4006,7 +4017,7 @@ class kInput(kLabel):
         self._draw()
 
     def _drawCursor(self): 
-        if (self._cursor_visible == 0 or not self._lines) or not self._focused:
+        if self._cursor_visible == 0 or not self._focused:
             kstore.scaleAnim(0)
             kstore.pushImmediate()
             self._cursor_line.hide()
@@ -4014,10 +4025,14 @@ class kInput(kLabel):
             kstore.unscaleAnim()
             return
 
-        line_height = max(word.getHeight() for word in self._lines[0])
+        if self._lines:
+            line_height = max(word.getHeight() for word in self._lines[0])
+            total_text_height = sum(max(word.getHeight() for word in l) for l in self._lines)
+        else:
+            _, (_, line_height) = the_word_buffer.load("X", self._font, self._fontSize, self._fontColor)
+            total_text_height = line_height
 
         # Step 2: Calculate Y position
-        total_text_height = sum(max(word.getHeight() for word in l) for l in self._lines)
         if self._alignY == "top":
             y = self._pos[1] + self._size[1] / 2 - self._padding
             y -= line_height
@@ -4057,7 +4072,8 @@ class kInput(kLabel):
         # Step 5: Draw the cursor
         kstore.pushImmediate()
         kstore.scaleAnim(0)
-        self._cursor_line.setPos(x, y)
+        self._cursor_line.setPos(x+1, y)
+        self._cursor_line.setColor(self._fontColor)
         self._cursor_line.show()
         kstore.pullImmediate()
         kstore.unscaleAnim()
@@ -4183,12 +4199,13 @@ class kMainWindow(QOpenGLWidget):
         return scale_factor_x, scale_factor_y
     
     def initLater(self):
+        kstore.pushImmediate()
+        kstore.scaleAnim(0)
+
         kstore.grid = kGrid(kstore.size[0], 100, kstore.size[1], 100)
 
         old_rot = kstore.rot
         kstore.rot = 0
-        kstore.pushImmediate()
-        kstore.scaleAnim(0)
         self.closeButton = drawButton("x", self.close)
         self.closeButton.setPos(kstore.size[0]-15, kstore.size[1]-15)
         self.closeButton.setSize(30,30)
@@ -4201,25 +4218,23 @@ class kMainWindow(QOpenGLWidget):
         self.closeButton.setPassiveColor(255,0,0)
         self.closeButton.setFontColor(255,255,255)
         self.closeButton.setHoverColor(200,0,0)
+        self.closeButton.setFontSize(12)
         self.closeButton._ui = True 
 
-        kstore.pullImmediate()
-        kstore.unscaleAnim()
         kstore.rot = old_rot
 
         self.initFps()
+        kstore.pullImmediate()
+        kstore.unscaleAnim()
+
 
     def initFps(self):
-        kstore.pushImmediate()
-        kstore.scaleAnim(0)
         self.fps_label = drawText("fps --")
         self.fps_label.setPos(int(kstore.size[0]) - 70, kstore.size[1] - 15)
         self.fps_label.setFontColor(255,255,255,150)
         self.fps_label.setRot(0)
+        self.fps_label.setFontSize(12)
         self.fps_label._ui = True 
-
-        kstore.pullImmediate()
-        kstore.unscaleAnim()
 
     def updateFps(self):
         current_time = kstore.elapsed_timer.elapsed()
