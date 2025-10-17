@@ -3407,8 +3407,6 @@ class kText(kShape):
         pass
 
     def _generateVertices(self):
-        if self._text == "1":
-            print(self._fontColor)
         self._fillMode = GL_TRIANGLE_FAN
         
         if self._text == "":
