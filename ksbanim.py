@@ -12,6 +12,7 @@ from importlib.metadata import version
 import requests
 from shapely.geometry import Polygon
 import numpy as np
+import colorsys 
 
 import inspect
 
@@ -565,11 +566,22 @@ def point_in_triangle(pt, tri):
 
     return b1 == b2 == b3
 
+
+def ensure_ccw(vertices):
+    area = 0
+    for i in range(len(vertices)):
+        x1, y1 = vertices[i]
+        x2, y2 = vertices[(i + 1) % len(vertices)]
+        area += (x2 - x1) * (y2 + y1)
+    if area > 0:  # If clockwise, reverse
+        vertices.reverse()
+    return vertices
+
 def tessellate(outer_contour):
     if len(outer_contour) < 3:
         return []
 
-    vertices = outer_contour[:]
+    vertices = ensure_ccw(outer_contour[:])
     triangles = []
 
     while len(vertices) > 3:
