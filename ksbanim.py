@@ -8,13 +8,10 @@ import struct
 import copy 
 import atexit 
 from abc import ABC, abstractmethod 
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import version
 import requests
 from shapely.geometry import Polygon
-import triangle as tr
-import colorsys
 import numpy as np
-import asyncio
 
 import inspect
 
@@ -552,36 +549,58 @@ def printErrorGL(message = ""):
         print(message, " ok")
 
 
-def tessellate(outer_contour, holes=[]):
+
+def is_convex(p1, p2, p3):
+    """Check if the angle formed by p1->p2->p3 is convex (counter-clockwise)."""
+    return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0]) > 0
+
+def point_in_triangle(pt, tri):
+    """Check if a point is inside a triangle using barycentric coordinates."""
+    def sign(p1, p2, p3):
+        return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
+    
+    b1 = sign(pt, tri[0], tri[1]) < 0.0
+    b2 = sign(pt, tri[1], tri[2]) < 0.0
+    b3 = sign(pt, tri[2], tri[0]) < 0.0
+
+    return b1 == b2 == b3
+
+def tessellate(outer_contour):
     if len(outer_contour) < 3:
-        return outer_contour
-
-    poly = Polygon(outer_contour, holes)
-    
-    if not poly.is_valid:
-        poly = poly.buffer(0)
-
-    vertices = list(poly.exterior.coords)[:-1]  # Exclude the closing point
-    segments = [[i, (i + 1) % len(vertices)] for i in range(len(vertices))]
-    
-    for hole in holes:
-        hole_vertices = list(hole)[:-1]  # Exclude the closing point
-        hole_segments = [[i + len(vertices), (i + 1) % len(hole_vertices) + len(vertices)] for i in range(len(hole_vertices))]
-        vertices.extend(hole_vertices)
-        segments.extend(hole_segments)
-    
-    poly_dict = {'vertices': vertices, 'segments': segments}
-    
-    triangulated = tr.triangulate(poly_dict, 'p')
-    if 'triangles' not in triangulated:
         return []
-    
+
+    vertices = outer_contour[:]
     triangles = []
-    for tri in triangulated['triangles']:
-        for idx in tri:
-            triangles.append(triangulated['vertices'][idx])
+
+    while len(vertices) > 3:
+        ear_found = False
+        for i in range(len(vertices)):
+            prev = vertices[i - 1]
+            curr = vertices[i]
+            next = vertices[(i + 1) % len(vertices)]
+
+            if is_convex(prev, curr, next):
+                triangle = [prev, curr, next]
+                is_ear = True
+                for p in vertices:
+                    if p not in triangle and point_in_triangle(p, triangle):
+                        is_ear = False
+                        break
+                if is_ear:
+                    triangles.append(triangle)
+                    del vertices[i]
+                    ear_found = True
+                    break
+        if not ear_found:
+            # Fallback: break to avoid infinite loop
+            break
+
+    if len(vertices) == 3:
+        triangles.append(vertices)
     
-    return triangles
+    flat_list = [coord for triangle in triangles for coord in triangle]
+
+    return flat_list
     
 def kNumber(instance, name, initial_value, update=True):
     cast = float
@@ -1552,7 +1571,7 @@ class kShape(ABC):
         if self._fillMode == GL_TRIANGLES:
             self._triangles = tessellate(copy.deepcopy(self._vertices))
             
-            flattened_triangles = [coord for vertex in self._triangles for coord in vertex]
+            flattened_triangles = [float(c) for vertex in self._triangles for c in vertex]            
             triangle_data = struct.pack(f'{len(flattened_triangles)}f', *flattened_triangles)
 
             if self._vbo_triangle is not None:
@@ -4241,11 +4260,19 @@ class kMainWindow(QOpenGLWidget):
             self.fps_buffer.append(current_time)
             self.fps_buffer.pop(0)
             
-            fps = 1000*len(self.fps_buffer)/(self.fps_buffer[-1] - self.fps_buffer[0])
+                        
+            # Calculate instantaneous FPS values between consecutive timestamps
+            instantaneous_fps = [
+                1000 / (self.fps_buffer[i] - self.fps_buffer[i - 1])
+                for i in range(1, len(self.fps_buffer))
+            ]
+
+            # Calculate the true average FPS
+            average_fps = sum(instantaneous_fps) / len(instantaneous_fps)
 
             if self.fps_label is not None:
                 kstore.pushImmediate()
-                self.fps_label.setText(f"fps {fps:.0f}")
+                self.fps_label.setText(f"fps {average_fps:.0f}")
                 kstore.pullImmediate()
         else:
             self.fps_buffer.append(current_time)

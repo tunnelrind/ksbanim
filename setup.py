@@ -5,14 +5,13 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 setup(
     name='ksbanim',
-    version='1.2.14',
+    version='1.2.15',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',
         'PyOpenGL',
         'imageio[ffmpeg]',
         'requests',
-        'triangle',
         'shapely',
         'setuptools'
     ],
