@@ -5,19 +5,17 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 setup(
     name='ksbanim',
-    version='1.2.16',
+    version='1.2.17',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',
         'PyOpenGL',
         'imageio[ffmpeg]',
-        'requests',
-        'shapely',
-        'setuptools'
+        'requests'
     ],
     author='Biasini Dario',
     author_email='tunnelrind@lernbaum.ch',
-    description='A module for animation based on PyQt5, OpenGL, and imageio[ffmpeg]',
+    description='A module for animation based on PyQt5 and OpenGL',
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     url='https://github.com/tunnelrind/ksbanim', 

@@ -10,7 +10,6 @@ import atexit
 from abc import ABC, abstractmethod 
 from importlib.metadata import version
 import requests
-from shapely.geometry import Polygon
 import numpy as np
 import colorsys 
 
@@ -64,9 +63,9 @@ def update_package():
 
 from OpenGL.GL import *
 
-from PyQt5.QtWidgets import QApplication, QLabel, QDesktopWidget, QDockWidget, QOpenGLWidget, QPushButton
-from PyQt5.QtGui import QPainter, QBrush, QPen, QPixmap, QColor, QTransform, QFont, QFontMetrics, QSurfaceFormat, QOpenGLContext, QImage
-from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QRect, QRectF, QBuffer
+from PyQt5.QtWidgets import QApplication, QDesktopWidget, QDockWidget, QOpenGLWidget
+from PyQt5.QtGui import QPainter, QColor, QFont, QFontMetrics, QSurfaceFormat, QOpenGLContext, QImage
+from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QBuffer
 
 import imageio
 
@@ -2068,11 +2067,16 @@ class kRect(kShape):
         self.getSize, self.setSize, self.getWidth, self.setWidth, self.getHeight, self.setHeight = kVec2(self, "size", size)
 
         if shape is None:
+            old_anim = kstore.animation
+
+            kstore.anim = old_anim*0.25
             self.initSize([1,1])
-            kstore.scaleAnim(0.5)
             self.setWidth(size[0])
+            kstore.anim = old_anim*0.75
+            kstore.milliseconds-= kstore.delay/4
             self.setHeight(size[1])
-            kstore.unscaleAnim()
+            kstore.milliseconds -= kstore.delay/4*3
+            kstore.anim = old_anim
 
     def getWidth(self): 
         """
@@ -2698,7 +2702,7 @@ class kTriangle(kShape):
 class kCursor(kTriangle):
     def __init__(self):
         kstore.scaleAnim(0)
-        super().__init__(12)
+        super().__init__(20)
         self.name = "kCursor"
 
         shape_buffer.remove(self)
@@ -3321,8 +3325,10 @@ class kWordBuffer:
         painter = QPainter(image)
         painter.setFont(font)
         painter.setPen(QColor(*font_color))
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setRenderHint(QPainter.TextAntialiasing)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.setRenderHint(QPainter.TextAntialiasing, True)
+        painter.setRenderHint(QPainter.HighQualityAntialiasing, True)
+
 
         painter.drawText(-rect.x(), -rect.y(), word)
         painter.end()
@@ -4930,7 +4936,6 @@ def run():
     action_queue.add(kMessage(" > end drawing (close with ESC or use the red X button on the top right)"))
     action_queue.add(kAction(_cleanup))
 
-    kstore.elapsed_timer.start()
     os._exit(kstore.app.exec_())
 
 def drawEllipse(a, b):
@@ -5045,18 +5050,18 @@ def drawVector(*size):
 
     size = toFloatList(size)
 
-    vector = kVector(size)
+    vector = kVector(*size)
     vector._updateShape()
     vector._draw()
     return vector
 
 def drawVectorTo(*point):
     """
-        draws a line from the cursor position to a certain point (ignores rotation)
+        draws a vector from the cursor position to a certain point (ignores rotation)
 
         **Examples**
-        - drawLineTo(600,600)
-        - drawLineTo([600,600])
+        - drawVectorTo(600,600)
+        - drawVectorTo([600,600])
     """
 
     point = toFloatList(point)
