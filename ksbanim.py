@@ -1666,11 +1666,12 @@ class kShape(ABC):
         """
             handler function is executed every time the mouse enters the shape
 
-            handler(x,y) must accept two numbers x and y
+            handler(shape, x,y) must accept a shape reference and two numbers x and y
 
             **example**
 
-            def handler(x,y):
+            def handler(shape, x,y):
+                shape.setColor(255,0,0)
                 print(x,y)
             
             circle.setOnMouseEnter(handler)
@@ -1685,11 +1686,12 @@ class kShape(ABC):
         """
             handler function is executed every time the mouse exits the shape
 
-            handler(x,y) must accept two numbers x and y
+            handler(shape, x,y) must accept a shape reference and two numbers x and y
 
             **example**
 
-            def handler(x,y):
+            def handler(shape, x,y):
+                shape.setColor(255,0,0)
                 print(x,y)
             
             circle.setOnMouseExit(handler)
@@ -1704,15 +1706,17 @@ class kShape(ABC):
         """
             executes the handler_function(key) if a mouse button is while hovering over the shape
             
-            - the handler_function excpects three arguments x, y and *button* (a string)
+            - the handler_function excpects four arguments shape, x, y and *button* (a string)
+            - shape is a reference to the clicked upon shape
             - button is either "left", "middle" or "right"
 
             **examples**
 
-            def button_press(x,y,button):
+            def shape_press(shape,x,y,button):
+                shape.setColor(255,0,0)
                 print(x, y, button)
 
-            shape.onMousePress(button_press) *# executes on every button press*
+            shape.onMousePress(shape_press) *# executes on every mouse press*
         """
         pass 
     def getOnMouseRelease(self): 
@@ -1724,15 +1728,17 @@ class kShape(ABC):
         """
             executes the handler_function(key) if a mouse button is released while hovering over the shape
             
-            - the handler_function excpects three arguments x, y and *button* (a string)
+            - the handler_function excpects four arguments shape, x, y and *button* (a string)
+            - shape is a reference to the shape, where the button has been released
             - button is either "left", "middle" or "right"
 
             **examples**
 
-            def button_release(x,y,button):
+            def mouse_released(shape, x,y,button):
+                shape.setColor(255,0,0)
                 print(x, y, button)
 
-            shape.onMouseRelease(button_release) *# executes on every button release*
+            shape.onMouseRelease(mouse_released) *# executes on every button release*
         """
         pass
 
@@ -2069,14 +2075,15 @@ class kRect(kShape):
         if shape is None:
             old_anim = kstore.animation
 
-            kstore.anim = old_anim*0.25
+            kstore.animation = old_anim*0.6
+
             self.initSize([1,1])
             self.setWidth(size[0])
-            kstore.anim = old_anim*0.75
-            kstore.milliseconds-= kstore.delay/4
+            kstore.animation = old_anim*0.75
+            kstore.milliseconds-= kstore.delay/4*3
             self.setHeight(size[1])
-            kstore.milliseconds -= kstore.delay/4*3
-            kstore.anim = old_anim
+            kstore.milliseconds -= kstore.delay/4
+            kstore.animation = old_anim
 
     def getWidth(self): 
         """
@@ -3891,7 +3898,7 @@ class kButton(kLabel):
         """ 
         pass
 
-    def _onUIClick(self, x, y, button):
+    def _onUIClick(self, shape, x, y, button):
         kstore.scaleAnim(0)
         kstore.pushImmediate()
         self.setFillColor(self._focusColor)
@@ -3900,20 +3907,20 @@ class kButton(kLabel):
         self._handler()
         kstore.pullImmediate()
 
-    def _onUIRelease(self, x, y, button):
+    def _onUIRelease(self, shape, x, y, button):
         if self.contains(x,y):
-            self._onUIMouseEnter(x,y)
+            self._onUIMouseEnter(shape, x,y)
         else:
-            self._onUIMouseExit(x,y)
+            self._onUIMouseExit(shape, x,y)
 
-    def _onUIMouseEnter(self, x, y):
+    def _onUIMouseEnter(self, shape, x, y):
         kstore.scaleAnim(0)
         kstore.pushImmediate()
         self.setFillColor(self._hoverColor)
         kstore.pullImmediate()
         kstore.unscaleAnim()
 
-    def _onUIMouseExit(self, x, y):
+    def _onUIMouseExit(self, shape, x, y):
         kstore.scaleAnim(0)
         kstore.pushImmediate()
         self.setFillColor(self._passiveColor)
@@ -3962,7 +3969,7 @@ class kInput(kLabel):
         self._drawCursor()
         glDisable(GL_DEPTH_TEST)
 
-    def _onUIClick(self, x, y, button):
+    def _onUIClick(self, shape, x, y, button):
         self._focused = True
         self._cursor_position = len(str(self._text))
         
@@ -3973,7 +3980,7 @@ class kInput(kLabel):
 
         kstore.pushImmediate()
         
-    def _onUIMouseEnter(self, x, y):
+    def _onUIMouseEnter(self, shape, x, y):
         if not self._focused:
             kstore.scaleAnim(0)
             kstore.pushImmediate()
@@ -3981,7 +3988,7 @@ class kInput(kLabel):
             kstore.pullImmediate()
             kstore.unscaleAnim()
 
-    def _onUIMouseExit(self, x, y):
+    def _onUIMouseExit(self, shape, x, y):
         if not self._focused:
             kstore.scaleAnim(0)
             kstore.pushImmediate()
@@ -3995,12 +4002,12 @@ class kInput(kLabel):
         if self._ready:
             self._drawCursor()
 
-    def _onUIRelease(self, x, y, button):
+    def _onUIRelease(self, shape, x, y, button):
         if self.contains(x,y):
-            self._onUIMouseEnter(x,y)
+            self._onUIMouseEnter(shape, x,y)
         else:
             self._focused = False
-            self._onUIMouseExit(x,y)
+            self._onUIMouseExit(shape, x,y)
 
     def _emit(self):
         if self._handler:
@@ -4157,6 +4164,7 @@ class kGrid:
         line.setRot(angle)
         line.setLineWidth(self.lineWidth)
         line.setColor(self.lineColor)
+        line._ui = True 
 
         self.lines.append(line)
 
@@ -4166,7 +4174,7 @@ class kGrid:
         label.setRot(0)
         label.setFontColor(self.fontColor)
         label.setFontSize(self.fontSize)
-
+        label._ui = True 
         self.labels.append(label)
 
     def createLabels(self):
@@ -4566,7 +4574,7 @@ class kMainWindow(QOpenGLWidget):
         for shape in shape_buffer:
             if shape._onMousePress and shape.contains(*pos):
                 kstore.pushImmediate()
-                shape._onMousePress(*pos, button_text)
+                shape._onMousePress(shape, *pos, button_text)
                 kstore.pullImmediate() 
 
         self.button_store.add(button_text)
@@ -4587,7 +4595,7 @@ class kMainWindow(QOpenGLWidget):
             if shape._onMouseRelease:
                
                 kstore.pushImmediate()
-                shape._onMouseRelease(x, y, button_text)
+                shape._onMouseRelease(shape, x, y, button_text)
                 kstore.pullImmediate()
 
         self.button_store.remove(button_text)
@@ -4619,13 +4627,13 @@ class kMainWindow(QOpenGLWidget):
                 shape._mouse_over = True 
                 if shape._onMouseEnter is not None:
                     kstore.pushImmediate()
-                    shape._onMouseEnter(x,y)
+                    shape._onMouseEnter(shape, x,y)
                     kstore.pullImmediate()
             elif not contains and shape._mouse_over:
                 shape._mouse_over = False 
                 if shape._onMouseExit is not None:
                     kstore.pushImmediate()
-                    shape._onMouseExit(x,y)
+                    shape._onMouseExit(shape, x,y)
                     kstore.pullImmediate()
 
         for handler in on_mouse_moved_handlers:
@@ -6060,7 +6068,7 @@ def _clear():
     i = 0
     while i < len(shape_buffer):
         shape = shape_buffer[i]
-        if shape._ready:
+        if shape._ready and not shape._ui:
             shape_buffer.pop(i)
         else:
             i = i + 1
