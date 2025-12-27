@@ -4599,7 +4599,7 @@ class kMainWindow(QOpenGLWidget):
                 kstore.pullImmediate()
 
         self.button_store.remove(button_text)
-        for handler in on_mouse_pressed_handlers:
+        for handler in on_mouse_released_handlers:
             kstore.pushImmediate()
             handler[0](x, y, button_text)
             kstore.pullImmediate()
