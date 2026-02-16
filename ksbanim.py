@@ -4140,6 +4140,9 @@ class kGrid:
         print("grid resize")
 
     def clear(self):
+        kstore.pushImmediate()
+        kstore.scaleAnim(0)
+
         for label in self.labels:
             label.remove()
 
@@ -4148,6 +4151,8 @@ class kGrid:
 
         self.labels.clear()
         self.lines.clear()
+        kstore.pullImmediate()
+        kstore.unscaleAnim()
         
     def draw(self):
         kstore.pushImmediate()
@@ -4820,20 +4825,12 @@ def createWindow(width=1000, height=1000):
     action_queue.add(kAction(_init))
     action_queue.add(kMessage(" > begin drawing"))
 
-    kstore.main_timer = QTimer()
-    kstore.main_timer.timeout.connect(lambda: action_queue.process())
-    kstore.main_timer.timeout.connect(lambda: kstore.window.update())
-    kstore.main_timer.start(kstore.dt)  # Process the queue every 100 ms
-
-    kstore.elapsed_timer.start()
-
 def _grid(value):
     kstore.show_grid = value 
 
     if kstore.grid == None:
         kstore.grid = kGrid(kstore.size[0], 100, kstore.size[1], 100)
-
-    if value:
+    elif value:
         kstore.grid.clear()
         kstore.grid.draw()
     else:
@@ -4943,6 +4940,13 @@ def run():
     
     action_queue.add(kMessage(" > end drawing (close with ESC or use the red X button on the top right)"))
     action_queue.add(kAction(_cleanup))
+    
+    kstore.main_timer = QTimer()
+    kstore.main_timer.timeout.connect(lambda: action_queue.process())
+    kstore.main_timer.timeout.connect(lambda: kstore.window.update())
+    kstore.main_timer.start(kstore.dt)
+
+    kstore.elapsed_timer.start()
 
     os._exit(kstore.app.exec_())
 
