@@ -14,3 +14,4 @@ build/
 __pycache__/
 __pycache__/ksbanim.cpython-313.pyc
 __pycache__/ksbanim.cpython-313.pyc
+*.gif

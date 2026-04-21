@@ -4452,13 +4452,19 @@ class kMainWindow(QOpenGLWidget):
         screenshot.save(filename + ".png", 'png')
         print(f" > png saved")
 
-    def saveAsGif(self, file_name):
+    def saveAsGif(self, file_name, kill):
         temp_folder = "temp_screenshots"
         os.makedirs(temp_folder, exist_ok=True)
 
         def save_frames():
+
+            app = QApplication.instance()
+            window = kstore.window  # your main window
+
+            QTimer.singleShot(0, window.hide)
+
             total_time = (self.frames[-1][1] - self.frames[0][1])
-            print(f" > begin saving GIF ({len(self.frames)} frames, duration {round(total_time * 10) / 10} s) - please keep the program running")
+            print(f" > begin saving GIF ({len(self.frames)} frames, duration {round(total_time * 10) / 10} s) - HIDING WINDOW - please keep the program running")
 
             dts = []
             images = []
@@ -4488,7 +4494,9 @@ class kMainWindow(QOpenGLWidget):
             dts = [dt*1000 for dt in dts]
             imageio.mimsave(file_name + ".gif", images, quantizer='nq', duration=dts, loop=0)
             print(" > GIF saved")
-
+            if kill:
+                QTimer.singleShot(0, app.quit)
+                
         threading.Thread(target=save_frames).start()
 
     def saveAsMp4(self, file_name):
@@ -6020,9 +6028,11 @@ def saveAsMp4(filename):
     action_queue.add(kSetter(kstore.window.saveAsMp4, filename))
     kstore.unscaleAnim()
 
-def saveAsGif(filename):
+def saveAsGif(filename, kill=True):
     """
         save captured frames as a GIF
+
+        optional kill windows argument
 
         **example**
 
@@ -6035,7 +6045,7 @@ def saveAsGif(filename):
         saveAsGif("example")
     """
     kstore.scaleAnim(0)
-    action_queue.add(kSetter(kstore.window.saveAsGif, filename))
+    action_queue.add(kSetter(kstore.window.saveAsGif, filename, kill))
     kstore.unscaleAnim()
 
 def setAnimationType(type):
