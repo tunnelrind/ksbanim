@@ -4218,7 +4218,8 @@ class kMainWindow(QOpenGLWidget):
         self.closeButton = None 
                 
         kstore.elapsed_timer = QElapsedTimer()
-
+        kstore.elapsed_timer.start()
+        
         self.record = False 
         self.frames = []
 
@@ -4945,8 +4946,6 @@ def run():
     kstore.main_timer.timeout.connect(lambda: action_queue.process())
     kstore.main_timer.timeout.connect(lambda: kstore.window.update())
     kstore.main_timer.start(kstore.dt)
-
-    kstore.elapsed_timer.start()
 
     os._exit(kstore.app.exec_())
 
