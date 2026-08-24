@@ -1,4 +1,4 @@
-import sys, subprocess
+import sys
 import math
 import traceback 
 import random
@@ -8,12 +8,8 @@ import struct
 import copy 
 import atexit 
 from abc import ABC, abstractmethod 
-from importlib.metadata import version
-import requests
 import numpy as np
 import colorsys 
-
-import inspect
 
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -21,10 +17,7 @@ ITALIC = "\033[3m"
 RED = "\033[31m"
 
 def is_running_under_pdoc():
-    for frame in inspect.stack():
-        if 'pdoc' in frame.filename:
-            return True
-    return False
+    return 'pdoc' in sys.modules
 
 def is_version_outdated(current_version, latest_version):
     current_parts = list(map(int, current_version.split('.')))
@@ -32,10 +25,14 @@ def is_version_outdated(current_version, latest_version):
     return current_parts < latest_parts
 
 update_needed = False 
+cleanup_started = False
 package_name = 'ksbanim'
 
 def check_for_updates():
     global update_needed
+
+    from importlib.metadata import version
+    import requests
 
     if is_running_under_pdoc():
         return 
@@ -53,6 +50,8 @@ def check_for_updates():
         pass  # Ignore network errors and do nothing
 
 def update_package():
+    import subprocess
+
     print("="*30)
     print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET) 
     print("="*30) 
@@ -66,9 +65,6 @@ from OpenGL.GL import *
 from PyQt5.QtWidgets import QApplication, QDesktopWidget, QDockWidget, QOpenGLWidget
 from PyQt5.QtGui import QPainter, QColor, QFont, QFontMetrics, QSurfaceFormat, QOpenGLContext, QImage
 from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QBuffer
-
-import imageio
-
 
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
@@ -555,15 +551,19 @@ def is_convex(p1, p2, p3):
     return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0]) > 0
 
 def point_in_triangle(pt, tri):
-    """Check if a point is inside a triangle using barycentric coordinates."""
-    def sign(p1, p2, p3):
-        return (p1[0] - p3[0]) * (p2[1] - p3[1]) - (p2[0] - p3[0]) * (p1[1] - p3[1])
-    
-    b1 = sign(pt, tri[0], tri[1]) < 0.0
-    b2 = sign(pt, tri[1], tri[2]) < 0.0
-    b3 = sign(pt, tri[2], tri[0]) < 0.0
+    """Check if a point is inside a triangle, including its boundary."""
+    def cross(p1, p2, p3):
+        return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
 
-    return b1 == b2 == b3
+    signs = [
+        cross(tri[0], tri[1], pt),
+        cross(tri[1], tri[2], pt),
+        cross(tri[2], tri[0], pt),
+    ]
+    has_negative = any(sign < 0 for sign in signs)
+    has_positive = any(sign > 0 for sign in signs)
+
+    return not (has_negative and has_positive)
 
 
 def ensure_ccw(vertices):
@@ -577,10 +577,18 @@ def ensure_ccw(vertices):
     return vertices
 
 def tessellate(outer_contour):
-    if len(outer_contour) < 3:
+    vertices = []
+    for vertex in outer_contour:
+        if not vertices or vertex != vertices[-1]:
+            vertices.append(vertex[:])
+
+    if len(vertices) > 1 and vertices[0] == vertices[-1]:
+        vertices.pop()
+
+    if len(vertices) < 3:
         return []
 
-    vertices = ensure_ccw(outer_contour[:])
+    vertices = ensure_ccw(vertices)
     triangles = []
 
     while len(vertices) > 3:
@@ -609,9 +617,7 @@ def tessellate(outer_contour):
     if len(vertices) == 3:
         triangles.append(vertices)
     
-    flat_list = [coord for triangle in triangles for coord in triangle]
-
-    return flat_list
+    return triangles
     
 def kNumber(instance, name, initial_value, update=True):
     cast = float
@@ -1565,6 +1571,9 @@ class kShape(ABC):
             print("")
             exit()
 
+        if QOpenGLContext.currentContext() is None:
+            return
+
         
         flattened_vertices = [float(coord) for vertex in self._vertices for coord in vertex]
         vertex_data = struct.pack(f'{len(flattened_vertices)}f', *flattened_vertices)
@@ -1582,7 +1591,12 @@ class kShape(ABC):
         if self._fillMode == GL_TRIANGLES:
             self._triangles = tessellate(copy.deepcopy(self._vertices))
             
-            flattened_triangles = [float(c) for vertex in self._triangles for c in vertex]            
+            flattened_triangles = [
+                float(coord)
+                for triangle in self._triangles
+                for vertex in triangle
+                for coord in vertex
+            ]
             triangle_data = struct.pack(f'{len(flattened_triangles)}f', *flattened_triangles)
 
             if self._vbo_triangle is not None:
@@ -1629,7 +1643,7 @@ class kShape(ABC):
                 glEnableVertexAttribArray(0)
                 glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, None)
                 glColor4ub(*list([int(c) for c in self._fillColor]))
-                glDrawArrays(GL_TRIANGLES, 0, len(self._triangles))
+                glDrawArrays(GL_TRIANGLES, 0, len(self._triangles) * 3)
                 glDisableVertexAttribArray(0)
                 glBindBuffer(GL_ARRAY_BUFFER, 0)
 
@@ -2394,6 +2408,8 @@ class kRoundedRect(kShape):
     
 class kImage(kShape):
     def __init__(self, file_name, width):
+        import imageio
+
         super().__init__()
         self.name = "kImage"
         self.file_name = file_name
@@ -2655,10 +2671,6 @@ class kTriangle(kShape):
             [self._length, 0],  
             [self._length / 2, height], 
         ]
-
-        for vertex in self.vertices:
-            vertex[0] -= self._size[0]/2
-            vertex[1] -= self._size[1]/2
 
         for vertex in vertices:
             vertex[0] -= self._length/2
@@ -4453,6 +4465,8 @@ class kMainWindow(QOpenGLWidget):
         print(f" > png saved")
 
     def saveAsGif(self, file_name, kill):
+        import imageio
+
         temp_folder = "temp_screenshots"
         os.makedirs(temp_folder, exist_ok=True)
 
@@ -4495,11 +4509,13 @@ class kMainWindow(QOpenGLWidget):
             imageio.mimsave(file_name + ".gif", images, quantizer='nq', duration=dts, loop=0)
             print(" > GIF saved")
             if kill:
-                QTimer.singleShot(0, app.quit)
+                QTimer.singleShot(0, window.close)
                 
         threading.Thread(target=save_frames).start()
 
     def saveAsMp4(self, file_name):
+        import imageio
+
         temp_folder = "temp_screenshots"
         os.makedirs(temp_folder, exist_ok=True)
 
@@ -4563,6 +4579,11 @@ class kMainWindow(QOpenGLWidget):
         for handler in on_key_released_handlers:
             if handler[1] == key_text or handler[1] == None:
                 handler[0](key_text)
+
+    def closeEvent(self, event):
+        event.accept()
+        self.hide()
+        QTimer.singleShot(0, _cleanup)
 
     def isKeyPressed(self, key):
         return key in self.key_store
@@ -4795,11 +4816,25 @@ def _getSample(name):
 
 def _init():
     kstore.window.initLater()
+    kstore.window.makeCurrent()
+    try:
+        for shape in shape_buffer:
+            shape._generateVBO()
+            shape._draw()
+    finally:
+        kstore.window.doneCurrent()
 
 def _cleanup():
+    global cleanup_started
+
+    if cleanup_started:
+        return
+
+    cleanup_started = True
     check_for_updates()
     if update_needed:
         update_package()
+    QApplication.instance().quit()
 
 # ==================================== PUBLIC INTERFACE ===========================================
 
@@ -4948,14 +4983,14 @@ def run():
         return 
     
     action_queue.add(kMessage(" > end drawing (close with ESC or use the red X button on the top right)"))
-    action_queue.add(kAction(_cleanup))
     
     kstore.main_timer = QTimer()
     kstore.main_timer.timeout.connect(lambda: action_queue.process())
     kstore.main_timer.timeout.connect(lambda: kstore.window.update())
     kstore.main_timer.start(kstore.dt)
 
-    os._exit(kstore.app.exec_())
+    kstore.app.setQuitOnLastWindowClosed(False)
+    kstore.app.exec_()
 
 def drawEllipse(a, b):
     """
