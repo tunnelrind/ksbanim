@@ -4306,9 +4306,11 @@ class kMainWindow(QOpenGLWidget):
             
                         
             # Calculate instantaneous FPS values between consecutive timestamps
+            # (skip zero-length intervals to avoid division by zero)
             instantaneous_fps = [
-                1000 / (self.fps_buffer[i] - self.fps_buffer[i - 1])
+                1000 / delta
                 for i in range(1, len(self.fps_buffer))
+                if (delta := self.fps_buffer[i] - self.fps_buffer[i - 1]) != 0
             ]
 
             # Calculate the true average FPS
