@@ -19,7 +19,7 @@ else:
 
 setup(
     name='ksbanim',
-    version='1.3.21',
+    version='1.3.22',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',

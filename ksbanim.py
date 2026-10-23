@@ -156,6 +156,7 @@ if QApplication.instance() is None:
     _default_format.setSamples(4)
     _default_format.setAlphaBufferSize(8)
     _default_format.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
+    _default_format.setSwapInterval(1)
     QSurfaceFormat.setDefaultFormat(_default_format)
 
 try:
@@ -4340,6 +4341,8 @@ class kMainWindow(QOpenGLWidget):
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
         self.fps_buffer = []
+        self._in_actions = False
+        self.last_paint = 0
 
         self.fps_label = None 
         self.closeButton = None 
@@ -4362,6 +4365,7 @@ class kMainWindow(QOpenGLWidget):
         if QSurfaceFormat.defaultFormat() != QSurfaceFormat():
             format.setSamples(4)
             format.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
+            format.setSwapInterval(1)
             format.setAlphaBufferSize(8)  # Request an 8-bit alpha channel
         self.setFormat(format)
 
@@ -4476,6 +4480,11 @@ class kMainWindow(QOpenGLWidget):
         glClearColor(*[c/255 for c in color])
 
     def paintGL(self):
+        # advance the animation exactly once per painted frame (context is already current),
+        # so the animation time always matches what is shown on screen
+        self.last_paint = kstore.wall_timer.elapsed()
+        self.step_actions()
+
         self.clearGL()
 
         glLoadIdentity()
@@ -4507,6 +4516,16 @@ class kMainWindow(QOpenGLWidget):
             dt = the_time - old_time 
             if dt > 10:
                 self.frames.append((self.captureFrame(), the_time/1000))
+
+    def step_actions(self):
+        # grabFramebuffer() re-enters paintGL, never process the queue recursively
+        if self._in_actions:
+            return
+        self._in_actions = True
+        try:
+            action_queue.process()
+        finally:
+            self._in_actions = False
 
     def clearGL(self):
         glClearColor(*kstore.backgroundColor)
@@ -4965,6 +4984,14 @@ def _getSample(name):
     
     return the_list 
 
+def _tick():
+    # painting drives the animation; only fall back to timer-driven actions when the
+    # window is not being painted (e.g. minimized or covered), so scripts still finish
+    window = kstore.window
+    if kstore.wall_timer.elapsed() - window.last_paint > 250:
+        _process_actions()
+    window.update()
+
 def _process_actions():
     # Actions call shape._draw(), which issues GL calls and needs a current context
     # the GL context only exists after the window was shown and initializeGL ran
@@ -4972,7 +4999,7 @@ def _process_actions():
         return
     kstore.window.makeCurrent()
     try:
-        action_queue.process()
+        kstore.window.step_actions()
     finally:
         kstore.window.doneCurrent()
 
@@ -5181,8 +5208,8 @@ def run():
     action_queue.add(kMessage(" > end drawing (close with ESC or use the red X button on the top right)"))
     
     kstore.main_timer = QTimer()
-    kstore.main_timer.timeout.connect(_process_actions)
-    kstore.main_timer.timeout.connect(lambda: kstore.window.update())
+    kstore.main_timer.setTimerType(Qt.PreciseTimer)
+    kstore.main_timer.timeout.connect(_tick)
     kstore.main_timer.start(kstore.dt)
 
     kstore.app.setQuitOnLastWindowClosed(False)
