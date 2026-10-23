@@ -9,6 +9,8 @@ import copy
 import atexit 
 from abc import ABC, abstractmethod 
 import platform
+import time
+import collections
 import tempfile
 import faulthandler
 
@@ -59,59 +61,103 @@ def is_version_outdated(current_version, latest_version):
 update_needed = False 
 latest_known_version = None
 UPDATE_MARKER = os.path.join(os.path.expanduser("~"), ".ksbanim_last_update")
+UPDATE_LOCK = os.path.join(os.path.expanduser("~"), ".ksbanim_update.lock")
+UPDATE_LOG = os.path.join(os.path.expanduser("~"), ".ksbanim_update.log")
 cleanup_started = False
+DEFAULT_REFRESH = 60  # used when the screen's refresh rate cannot be determined
+FPS_BUFFER_SIZE = 60  # frames in the moving average of the fps display
+RECORD_FPS = 60  # only recordings (gif/mp4) are limited to this
 update_thread = None
 update_lock = threading.Lock()
 package_name = 'ksbanim'
 
+def _read_file(path):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+def _last_attempted_version():
+    # version the background installer last installed successfully
+    return _read_file(UPDATE_MARKER)
+
 def check_for_updates():
-    global update_needed
+    global update_needed, latest_known_version
+
+    if is_running_under_pdoc():
+        return 
 
     from importlib.metadata import version
     import requests
 
-    if is_running_under_pdoc():
-        return 
-    
     try:
         current_version = version(package_name)
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=2)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
-        
-        global latest_known_version
         latest_known_version = latest_version
 
-        # only update if this release was not already tried (a failed or shadowed install would retry forever)
+        # the marker avoids a reinstall loop when pip succeeded but the import still resolves to an older copy
         if is_version_outdated(current_version, latest_version) and _last_attempted_version() != latest_version:
             update_needed = True 
+            print(BOLD + RED + f"{package_name} installed version: {current_version}" + RESET)
+            print(BOLD + RED + f"{package_name} latest version found: {latest_version}" + RESET, flush=True)
             
     except (requests.RequestException, ValueError):
         pass  # Ignore network errors and do nothing
 
-def _last_attempted_version():
+# runs in a separate process: pip output goes to the log, the marker is only written on success
+_INSTALLER_CODE = """
+import os, subprocess, sys
+spec, marker, log, lock, latest = sys.argv[1:6]
+try:
+    with open(log, "w") as f:
+        ok = subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", spec],
+                            stdout=f, stderr=subprocess.STDOUT).returncode == 0
+    if ok:
+        with open(marker, "w") as f:
+            f.write(latest)
+finally:
     try:
-        with open(UPDATE_MARKER) as f:
-            return f.read().strip()
+        os.remove(lock)
     except OSError:
-        return None
+        pass
+"""
 
 def update_package():
     import subprocess
+    import time
 
+    # another instance may already be installing (stale locks expire after 10 minutes)
     try:
-        with open(UPDATE_MARKER, "w") as f:
-            f.write(str(latest_known_version))
+        if time.time() - os.path.getmtime(UPDATE_LOCK) < 600:
+            return
+    except OSError:
+        pass
+    try:
+        with open(UPDATE_LOCK, "w") as f:
+            f.write(str(os.getpid()))
     except OSError:
         pass
 
-    print("="*30)
-    print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET) 
-    print("="*30) 
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--upgrade', package_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("="*30)
-    print(BOLD + RED + f"{package_name} has been updated to the latest version." + RESET)
-    print("="*30)
+    args = [sys.executable, "-c", _INSTALLER_CODE, f"{package_name}=={latest_known_version}",
+            UPDATE_MARKER, UPDATE_LOG, UPDATE_LOCK, str(latest_known_version)]
+
+    # detach completely so the install keeps running after the window or the program is closed
+    options = {}
+    if os.name == "nt":
+        options["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED_PROCESS | NEW_PROCESS_GROUP | NO_WINDOW
+    else:
+        options["start_new_session"] = True
+
+    try:
+        subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, close_fds=True, **options)
+    except OSError:
+        return
+
+    print(BOLD + RED + f"installing {package_name} {latest_known_version} in the background (active from the next start, log: {UPDATE_LOG})" + RESET, flush=True)
 
 try:
     from OpenGL.GL import *
@@ -500,6 +546,7 @@ class kStore:
         self.rot = 0
         self.timer = None 
         self.dt = round(1000/60)
+        self.dt_user = False  # True once setFps/setFrameTick was called
         self.milliseconds = 0
         self.time_stack = []
         self.delay = 250
@@ -4340,9 +4387,15 @@ class kMainWindow(QOpenGLWidget):
         self.setWindowTitle("ksbanim drawing surface")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
 
-        self.fps_buffer = []
+        self.fps_buffer = collections.deque(maxlen=FPS_BUFFER_SIZE)
+        self._shown_fps = None
         self._in_actions = False
         self.last_paint = 0
+        self._next_capture = None
+        self._frame_timer = QTimer(self)
+        self._frame_timer.setSingleShot(True)
+        self._frame_timer.setTimerType(Qt.PreciseTimer)
+        self._frame_timer.timeout.connect(self.update)
 
         self.fps_label = None 
         self.closeButton = None 
@@ -4421,31 +4474,27 @@ class kMainWindow(QOpenGLWidget):
         self.fps_label._ui = True 
 
     def updateFps(self):
-        current_time = kstore.wall_timer.elapsed()
-        
-        if len(self.fps_buffer) > 59:
-            self.fps_buffer.append(current_time)
-            self.fps_buffer.pop(0)
-            
-                        
-            # Calculate instantaneous FPS values between consecutive timestamps
-            # (skip zero-length intervals to avoid division by zero)
-            instantaneous_fps = [
-                1000 / delta
-                for i in range(1, len(self.fps_buffer))
-                if (delta := self.fps_buffer[i] - self.fps_buffer[i - 1]) != 0
-            ]
+        # moving average over the last FPS_BUFFER_SIZE frames:
+        # (frames in window - 1) / time between the oldest and newest frame.
+        # perf_counter gives sub-millisecond timestamps (elapsed() only has whole milliseconds)
+        self.fps_buffer.append(time.perf_counter())
 
-            # Calculate the true average FPS
-            average_fps = sum(instantaneous_fps) / len(instantaneous_fps)
+        if len(self.fps_buffer) < 2:
+            return
 
-            if self.fps_label is not None:
-                kstore.pushImmediate()
-                self.fps_label.setText(f"fps {average_fps:.0f}")
-                kstore.pullImmediate()
-        else:
-            self.fps_buffer.append(current_time)
-        
+        span = self.fps_buffer[-1] - self.fps_buffer[0]
+        if span <= 0:
+            return
+
+        average_fps = round((len(self.fps_buffer) - 1) / span)
+
+        # only touch the label when the shown number changes
+        if self.fps_label is not None and average_fps != self._shown_fps:
+            self._shown_fps = average_fps
+            kstore.pushImmediate()
+            self.fps_label.setText(f"fps {average_fps:.0f}")
+            kstore.pullImmediate()
+
     def activateAntialiasing(self):
         format = QSurfaceFormat()
         context = QOpenGLContext.currentContext()
@@ -4482,6 +4531,7 @@ class kMainWindow(QOpenGLWidget):
     def paintGL(self):
         # advance the animation exactly once per painted frame (context is already current),
         # so the animation time always matches what is shown on screen
+        frame_start = time.perf_counter()
         self.last_paint = kstore.wall_timer.elapsed()
         self.step_actions()
 
@@ -4507,15 +4557,40 @@ class kMainWindow(QOpenGLWidget):
             kstore.elapsed_timer.arm()
 
         if self.record:
+            # keep at most RECORD_FPS frames per second, however fast the display refreshes;
+            # captures follow a fixed time grid so a 120 Hz display gives every 2nd frame
             the_time = kstore.elapsed_timer.elapsed()
-            if len(self.frames) > 0:
-                old_time = self.frames[-1][1]
-            else:
-                old_time = 0 
-            
-            dt = the_time - old_time 
-            if dt > 10:
+            interval = 1000/RECORD_FPS
+            if self._next_capture is None or the_time + 2 >= self._next_capture:
                 self.frames.append((self.captureFrame(), the_time/1000))
+                if self._next_capture is None or the_time - self._next_capture > interval:
+                    self._next_capture = the_time + interval
+                else:
+                    self._next_capture += interval
+
+        self.schedule_next_frame(frame_start)
+
+    def apply_screen_rate(self):
+        # Without setFps() the frame rate follows the screen the window is on.
+        if kstore.dt_user:
+            return
+        refresh = DEFAULT_REFRESH
+        try:
+            reported = float(self.screen().refreshRate())
+            if math.isfinite(reported) and 1 <= reported <= 1000:
+                refresh = reported
+        except Exception:
+            pass  # no screen, no value, or an unusable one: keep the 60 fps default
+        kstore.dt = 1000/refresh
+
+    def schedule_next_frame(self, frame_start):
+        # One reusable timer: restarting it replaces a pending request, so stray paints
+        # (expose events etc.) can never start extra chains. The request fires slightly
+        # early (floor) and the buffer swap waits for vsync, so no refresh is missed.
+        self.apply_screen_rate()
+        interval = kstore.dt/1000
+        remaining = interval - (time.perf_counter() - frame_start)
+        self._frame_timer.start(max(0, int(remaining*1000)))
 
     def step_actions(self):
         # grabFramebuffer() re-enters paintGL, never process the queue recursively
@@ -4598,6 +4673,7 @@ class kMainWindow(QOpenGLWidget):
       
     def setRecord(self, value):
         self.record = value
+        self._next_capture = None
 
     def captureFrame(self):
         screenshot = self.grabFramebuffer()
@@ -4647,7 +4723,7 @@ class kMainWindow(QOpenGLWidget):
                     frame.save(buffer, 'PNG')
                     buffer.seek(0)
                     images.append(imageio.imread(buffer.data().data()))
-                    dts.append(kstore.dt/1000 + accumulated_duration)
+                    dts.append(1/RECORD_FPS + accumulated_duration)
 
             dts = [dt*1000 for dt in dts]
             imageio.mimsave(file_name + ".gif", images, quantizer='nq', duration=dts, loop=0)
@@ -4677,7 +4753,7 @@ class kMainWindow(QOpenGLWidget):
                 buffer.seek(0)
                 images.append(imageio.imread(buffer.data().data()))
                 if i == len(self.frames) - 1:
-                    dts.append(kstore.dt/1000)
+                    dts.append(1/RECORD_FPS)
                 else:
                     dts.append(self.frames[i + 1][1] - self.frames[i][1])
 
@@ -4985,12 +5061,15 @@ def _getSample(name):
     return the_list 
 
 def _tick():
-    # painting drives the animation; only fall back to timer-driven actions when the
-    # window is not being painted (e.g. minimized or covered), so scripts still finish
+    # Watchdog only: frames are chained from paintGL (see kMainWindow.schedule_next_frame).
+    # If nothing was painted for a while (first show, window covered or minimized), advance the
+    # actions anyway so scripts still finish, and restart the paint chain.
     window = kstore.window
-    if kstore.wall_timer.elapsed() - window.last_paint > 250:
+    idle = kstore.wall_timer.elapsed() - window.last_paint
+    limit = max(250, 3*kstore.dt)
+    if idle > limit:
         _process_actions()
-    window.update()
+        window.update()
 
 def _process_actions():
     # Actions call shape._draw(), which issues GL calls and needs a current context
@@ -5210,7 +5289,7 @@ def run():
     kstore.main_timer = QTimer()
     kstore.main_timer.setTimerType(Qt.PreciseTimer)
     kstore.main_timer.timeout.connect(_tick)
-    kstore.main_timer.start(kstore.dt)
+    kstore.main_timer.start(50)
 
     kstore.app.setQuitOnLastWindowClosed(False)
     kstore.app.exec_()
@@ -5815,9 +5894,12 @@ def setFrameTick(milliseconds):
     """
         set the main timer tick in milliseconds (time between two frames)
 
+        default: follows the refresh rate of the screen (e.g. 16.7 ms at 60 Hz, 8.3 ms at 120 Hz)
+
         if the drawing operation can't keep up, the real tick (time between two frames) might be larger
     """
     kstore.dt = milliseconds
+    kstore.dt_user = True
     if kstore.timer is not None:
         kstore.timer.setInterval(milliseconds)
 
@@ -5831,6 +5913,8 @@ def getTick():
 def setFps(fps):
     """
         set the main timer fps in frames per second
+
+        default: the refresh rate of the screen (e.g. 60 or 120)
 
         if the drawing operation can't keep up, the real tick (time between two frames) might be larger
     """
