@@ -66,6 +66,7 @@ UPDATE_LOG = os.path.join(os.path.expanduser("~"), ".ksbanim_update.log")
 cleanup_started = False
 DEFAULT_REFRESH = 60  # used when the screen's refresh rate cannot be determined
 FPS_BUFFER_SIZE = 60  # frames in the moving average of the fps display
+DRAG_STRIP_HEIGHT = 30  # height in pixel of the top strip that moves the window
 RECORD_FPS = 60  # only recordings (gif/mp4) are limited to this
 update_thread = None
 update_lock = threading.Lock()
@@ -4392,6 +4393,7 @@ class kMainWindow(QOpenGLWidget):
         self._in_actions = False
         self.last_paint = 0
         self._next_capture = None
+        self._drag_offset = None
         self._frame_timer = QTimer(self)
         self._frame_timer.setSingleShot(True)
         self._frame_timer.setTimerType(Qt.PreciseTimer)
@@ -4838,6 +4840,26 @@ class kMainWindow(QOpenGLWidget):
             handler[0](*pos, button_text)
             kstore.pullImmediate()
 
+        self.begin_window_drag(event, pos)
+
+    def begin_window_drag(self, event, pos):
+        # the window has no title bar: the strip at the top acts as one
+        if event.button() != Qt.LeftButton or event.pos().y() > DRAG_STRIP_HEIGHT:
+            return
+        if any(shape._ui and shape._onMousePress and shape.contains(*pos) for shape in shape_buffer):
+            return  # close button and other UI elements keep their click
+
+        # preferred: let the window system move the window (works on every OS, incl. Wayland)
+        try:
+            handle = self.windowHandle()
+            if handle is not None and handle.startSystemMove():
+                self.button_store.discard("left")
+                return
+        except Exception:
+            pass
+
+        self._drag_offset = event.globalPos() - self.frameGeometry().topLeft()
+
     def mouseReleaseEvent(self, event):
         button = event.button()
         button_text = self.getButtonText(button)
@@ -4853,7 +4875,8 @@ class kMainWindow(QOpenGLWidget):
                 shape._onMouseRelease(shape, x, y, button_text)
                 kstore.pullImmediate()
 
-        self.button_store.remove(button_text)
+        self._drag_offset = None
+        self.button_store.discard(button_text)
         for handler in on_mouse_released_handlers:
             kstore.pushImmediate()
             handler[0](x, y, button_text)
@@ -4867,6 +4890,12 @@ class kMainWindow(QOpenGLWidget):
         return [int(x*scale_factor_x), int(kstore.size[1] - y*scale_factor_y)]
     
     def mouseMoveEvent(self, event):    
+        if self._drag_offset is not None:
+            if event.buttons() & Qt.LeftButton:
+                self.move(event.globalPos() - self._drag_offset)
+            else:
+                self._drag_offset = None
+
         pos = event.pos()
         pos = self.translateMousePos([pos.x(), pos.y()])
         x = pos[0]
