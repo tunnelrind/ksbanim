@@ -428,6 +428,28 @@ class kSetter:
         else:
             return 0
 
+class kClock:
+    # Animation clock: stays at 0 until arm() is called, so the animation only starts
+    # once the window and grid have actually been drawn, however long loading took.
+    def __init__(self):
+        self._timer = QElapsedTimer()
+        self._origin = None
+
+    def start(self):
+        self._timer.start()
+
+    def arm(self):
+        if self._origin is None:
+            self._origin = self._timer.elapsed()
+
+    def armed(self):
+        return self._origin is not None
+
+    def elapsed(self):
+        if self._origin is None:
+            return 0
+        return self._timer.elapsed() - self._origin
+
 class kActionQueue:
     def __init__(self):
         self.queue = []
@@ -4303,8 +4325,11 @@ class kMainWindow(QOpenGLWidget):
         self.fps_label = None 
         self.closeButton = None 
                 
-        kstore.elapsed_timer = QElapsedTimer()
+        kstore.elapsed_timer = kClock()
         kstore.elapsed_timer.start()
+        kstore.wall_timer = QElapsedTimer()
+        kstore.wall_timer.start()
+        kstore.init_done = False
         
         self.record = False 
         self.frames = []
@@ -4373,7 +4398,7 @@ class kMainWindow(QOpenGLWidget):
         self.fps_label._ui = True 
 
     def updateFps(self):
-        current_time = kstore.elapsed_timer.elapsed()
+        current_time = kstore.wall_timer.elapsed()
         
         if len(self.fps_buffer) > 59:
             self.fps_buffer.append(current_time)
@@ -4448,6 +4473,10 @@ class kMainWindow(QOpenGLWidget):
             kstore.cursor._drawGL()
 
         self.updateFps()
+
+        # first frame after _init (grid, buttons) is on screen: start the animation clock
+        if kstore.init_done:
+            kstore.elapsed_timer.arm()
 
         if self.record:
             the_time = kstore.elapsed_timer.elapsed()
@@ -4933,6 +4962,7 @@ def _init():
     for shape in shape_buffer:
         shape._generateVBO()
         shape._draw()
+    kstore.init_done = True
 
 def _update_worker():
     try:
