@@ -57,6 +57,8 @@ def is_version_outdated(current_version, latest_version):
     return current_parts < latest_parts
 
 update_needed = False 
+latest_known_version = None
+UPDATE_MARKER = os.path.join(os.path.expanduser("~"), ".ksbanim_last_update")
 cleanup_started = False
 update_thread = None
 update_lock = threading.Lock()
@@ -77,14 +79,31 @@ def check_for_updates():
         response.raise_for_status()
         latest_version = response.json()['info']['version']
         
-        if is_version_outdated(current_version, latest_version):
+        global latest_known_version
+        latest_known_version = latest_version
+
+        # only update if this release was not already tried (a failed or shadowed install would retry forever)
+        if is_version_outdated(current_version, latest_version) and _last_attempted_version() != latest_version:
             update_needed = True 
             
-    except requests.RequestException:
+    except (requests.RequestException, ValueError):
         pass  # Ignore network errors and do nothing
+
+def _last_attempted_version():
+    try:
+        with open(UPDATE_MARKER) as f:
+            return f.read().strip()
+    except OSError:
+        return None
 
 def update_package():
     import subprocess
+
+    try:
+        with open(UPDATE_MARKER, "w") as f:
+            f.write(str(latest_known_version))
+    except OSError:
+        pass
 
     print("="*30)
     print(BOLD + RED + "installing newest version of ksbanim. wait for the update to complete" + RESET) 
