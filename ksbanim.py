@@ -10,6 +10,7 @@ import atexit
 from abc import ABC, abstractmethod 
 import platform
 import time
+import json
 import collections
 import tempfile
 import faulthandler
@@ -63,6 +64,10 @@ latest_known_version = None
 UPDATE_MARKER = os.path.join(os.path.expanduser("~"), ".ksbanim_last_update")
 UPDATE_LOCK = os.path.join(os.path.expanduser("~"), ".ksbanim_update.lock")
 UPDATE_LOG = os.path.join(os.path.expanduser("~"), ".ksbanim_update.log")
+UPDATE_LOCK_MAX_AGE = 900  # seconds after which an install lock counts as stale
+UPDATE_RETRY_SECONDS = 3600  # wait before retrying a failed install of the same version
+UPDATE_TRIES = 4
+UPDATE_TRY_WAIT = 30
 cleanup_started = False
 DEFAULT_REFRESH = 60  # used when the screen's refresh rate cannot be determined
 FPS_BUFFER_SIZE = 60  # frames in the moving average of the fps display
@@ -72,16 +77,32 @@ update_thread = None
 update_lock = threading.Lock()
 package_name = 'ksbanim'
 
-def _read_file(path):
+def _read_state():
+    # {"version": last version tried, "ok": installed successfully, "time": when, "error": last pip error line}
     try:
-        with open(path) as f:
-            return f.read().strip()
+        with open(UPDATE_MARKER) as f:
+            text = f.read().strip()
     except OSError:
         return None
+    try:
+        state = json.loads(text)
+        return state if isinstance(state, dict) else None
+    except ValueError:
+        return {"version": text, "ok": True, "time": 0}  # older marker format: plain version
 
-def _last_attempted_version():
-    # version the background installer last installed successfully
-    return _read_file(UPDATE_MARKER)
+def _installed_version():
+    try:
+        from importlib.metadata import version
+        return version(package_name)
+    except Exception:
+        return ""
+
+def _install_running():
+    # a lock younger than UPDATE_LOCK_MAX_AGE means another start is installing right now
+    try:
+        return time.time() - os.path.getmtime(UPDATE_LOCK) < UPDATE_LOCK_MAX_AGE
+    except OSError:
+        return False
 
 def check_for_updates():
     global update_needed, latest_known_version
@@ -99,51 +120,81 @@ def check_for_updates():
         latest_version = response.json()['info']['version']
         latest_known_version = latest_version
 
-        # the marker avoids a reinstall loop when pip succeeded but the import still resolves to an older copy
-        if is_version_outdated(current_version, latest_version) and _last_attempted_version() != latest_version:
-            update_needed = True 
-            print(BOLD + RED + f"{package_name} installed version: {current_version}" + RESET)
-            print(BOLD + RED + f"{package_name} latest version found: {latest_version}" + RESET, flush=True)
+        if not is_version_outdated(current_version, latest_version) or _install_running():
+            return
+
+        state = _read_state()
+        if state and state.get("version") == latest_version:
+            if state.get("ok"):
+                return  # pip installed it but this interpreter still imports an older copy: do not loop
+            if time.time() - float(state.get("time", 0)) < UPDATE_RETRY_SECONDS:
+                return  # failed recently (e.g. pip index not updated yet): try again later
+
+        update_needed = True 
             
-    except (requests.RequestException, ValueError):
+    except (requests.RequestException, ValueError, KeyError, TypeError):
         pass  # Ignore network errors and do nothing
 
-# runs in a separate process: pip output goes to the log, the marker is only written on success
+# runs in a detached process. A new release shows up in the PyPI JSON API before pip's index
+# serves it, so a failed install is retried a few times before the result is recorded.
 _INSTALLER_CODE = """
-import os, subprocess, sys
-spec, marker, log, lock, latest = sys.argv[1:6]
+import json, os, subprocess, sys, time
+spec, marker, log, lock, latest, tries, wait, previous = sys.argv[1:9]
+ok, error = False, ""
 try:
     with open(log, "w") as f:
-        ok = subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", spec],
-                            stdout=f, stderr=subprocess.STDOUT).returncode == 0
-    if ok:
-        with open(marker, "w") as f:
-            f.write(latest)
+        for attempt in range(int(tries)):
+            if attempt:
+                time.sleep(float(wait))
+            f.write("--- attempt %d ---\\n" % (attempt + 1)); f.flush()
+            result = subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "--no-cache-dir", spec],
+                                    stdout=f, stderr=subprocess.STDOUT)
+            if result.returncode == 0:
+                ok = True
+                break
+    if not ok:
+        with open(log) as f:
+            lines = [l.strip() for l in f if l.strip() and not l.startswith("---")]
+        error = lines[-1][:300] if lines else "pip failed"
 finally:
+    try:
+        with open(marker, "w") as f:
+            json.dump({"version": latest, "from": previous, "ok": ok, "time": time.time(), "error": error}, f)
+    except OSError:
+        pass
     try:
         os.remove(lock)
     except OSError:
         pass
 """
 
+def _acquire_install_lock():
+    for _ in range(2):
+        try:
+            fd = os.open(UPDATE_LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return True
+        except FileExistsError:
+            if _install_running():
+                return False
+            try:
+                os.remove(UPDATE_LOCK)  # stale lock of a crashed installer
+            except OSError:
+                return False
+        except OSError:
+            return True  # no usable home directory: still try to update
+    return False
+
 def update_package():
     import subprocess
-    import time
 
-    # another instance may already be installing (stale locks expire after 10 minutes)
-    try:
-        if time.time() - os.path.getmtime(UPDATE_LOCK) < 600:
-            return
-    except OSError:
-        pass
-    try:
-        with open(UPDATE_LOCK, "w") as f:
-            f.write(str(os.getpid()))
-    except OSError:
-        pass
+    if not _acquire_install_lock():
+        return
 
     args = [sys.executable, "-c", _INSTALLER_CODE, f"{package_name}=={latest_known_version}",
-            UPDATE_MARKER, UPDATE_LOG, UPDATE_LOCK, str(latest_known_version)]
+            UPDATE_MARKER, UPDATE_LOG, UPDATE_LOCK, str(latest_known_version),
+            str(UPDATE_TRIES), str(UPDATE_TRY_WAIT), _installed_version()]
 
     # detach completely so the install keeps running after the window or the program is closed
     options = {}
@@ -156,9 +207,28 @@ def update_package():
         subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, close_fds=True, **options)
     except OSError:
+        try:
+            os.remove(UPDATE_LOCK)
+        except OSError:
+            pass
         return
 
-    print(BOLD + RED + f"installing {package_name} {latest_known_version} in the background (active from the next start, log: {UPDATE_LOG})" + RESET, flush=True)
+def announce_update_success():
+    # the install runs detached and may finish after the program ended, so the success is
+    # announced once at the next start, and only if this interpreter really runs the new version
+    from importlib.metadata import version
+    state = _read_state()
+    if not state or not state.get("ok") or state.get("announced") or not state.get("from"):
+        return
+    try:
+        if version(package_name) != state["version"]:
+            return
+        state["announced"] = True
+        with open(UPDATE_MARKER, "w") as f:
+            json.dump(state, f)
+    except Exception:
+        return
+    print(BOLD + RED + f"{package_name} was updated: {state['from']} -> {state['version']}" + RESET, flush=True)
 
 try:
     from OpenGL.GL import *
@@ -5122,6 +5192,7 @@ def _init():
 
 def _update_worker():
     try:
+        announce_update_success()
         check_for_updates()
         if update_needed:
             update_package()
