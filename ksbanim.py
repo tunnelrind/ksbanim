@@ -4927,14 +4927,12 @@ def _process_actions():
         kstore.window.doneCurrent()
 
 def _init():
+    # runs as an action inside _process_actions, which already holds the GL context;
+    # calling doneCurrent() here would drop it for the remaining actions of the same pass
     kstore.window.initLater()
-    kstore.window.makeCurrent()
-    try:
-        for shape in shape_buffer:
-            shape._generateVBO()
-            shape._draw()
-    finally:
-        kstore.window.doneCurrent()
+    for shape in shape_buffer:
+        shape._generateVBO()
+        shape._draw()
 
 def _update_worker():
     try:
