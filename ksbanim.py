@@ -58,6 +58,8 @@ def is_version_outdated(current_version, latest_version):
 
 update_needed = False 
 cleanup_started = False
+update_thread = None
+update_lock = threading.Lock()
 package_name = 'ksbanim'
 
 def check_for_updates():
@@ -4912,6 +4914,24 @@ def _init():
     finally:
         kstore.window.doneCurrent()
 
+def _update_worker():
+    try:
+        check_for_updates()
+        if update_needed:
+            update_package()
+    except Exception:
+        pass  # never let the updater break the user's program
+
+def _auto_update(wait=False):
+    # runs once: at the end of drawing (run) or on close, whichever comes first
+    global update_thread
+    with update_lock:
+        if update_thread is None:
+            update_thread = threading.Thread(target=_update_worker, daemon=False)
+            update_thread.start()
+    if wait:
+        update_thread.join()
+
 def _cleanup():
     global cleanup_started
 
@@ -4919,9 +4939,7 @@ def _cleanup():
         return
 
     cleanup_started = True
-    check_for_updates()
-    if update_needed:
-        update_package()
+    _auto_update(wait=True)
     QApplication.instance().quit()
 
 # ==================================== PUBLIC INTERFACE ===========================================
@@ -5070,6 +5088,7 @@ def run():
     if quit:
         return 
     
+    _auto_update()
     action_queue.add(kMessage(" > end drawing (close with ESC or use the red X button on the top right)"))
     
     kstore.main_timer = QTimer()
