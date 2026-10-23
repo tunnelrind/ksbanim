@@ -104,6 +104,27 @@ except Exception:
     _dump_error("import OpenGL/PyQt5")
     raise
 
+def _patch_pyopengl_context():
+    # PyOpenGL keeps per-context state (e.g. glVertexAttribPointer) keyed by the native current
+    # context and raises "no valid context" if that lookup returns 0, even though Qt has a
+    # current context. In that case fall back to Qt's context so the key is still stable.
+    try:
+        from OpenGL import platform as _gl_platform
+        native_get_context = _gl_platform.GetCurrentContext
+
+        def get_current_context():
+            ctx = native_get_context()
+            if ctx:
+                return ctx
+            qt_ctx = QOpenGLContext.currentContext()
+            return id(qt_ctx) if qt_ctx is not None else ctx
+
+        _gl_platform.GetCurrentContext = get_current_context
+    except Exception:
+        _dump_error("patching PyOpenGL context lookup")
+
+_patch_pyopengl_context()
+
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
 
