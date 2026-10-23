@@ -4500,7 +4500,7 @@ class kMainWindow(QOpenGLWidget):
         print("max_width: ", max_width)
         print("max_height: ", max_height)
         print("logical size: ", kstore.size)
-        print("gl_size: ", self.gl_width, self.gl_height)
+        print("gl_size: ", getattr(self, "gl_width", None), getattr(self, "gl_height", None))
         
     def center(self):
         qr = self.frameGeometry()
@@ -5035,19 +5035,28 @@ def getWindowHeight():
     """
     return kstore.window.height() 
 
-def getInitWindowSize():
-    screen = QDesktopWidget().availableGeometry()
+def getInitWindowSize(timeout=5):
+    import time
+    deadline = time.monotonic() + timeout
 
-    max_height = screen.height()
-    max_width = screen.width()
-    
-    temp_dock = QDockWidget()
-    dock_height = temp_dock.sizeHint().height()
-    max_height -= dock_height
+    # wait until Qt reports a usable screen (it can be empty right after startup)
+    while True:
+        screen = QDesktopWidget().availableGeometry()
+        max_height = screen.height()
+        max_width = screen.width()
 
-    size = int(0.9*min(max_width, max_height))
-    
-    return [size]*2
+        temp_dock = QDockWidget()
+        dock_height = temp_dock.sizeHint().height()
+
+        size = int(0.9*min(max_width, max_height - dock_height))
+        if size > 0:
+            return [size]*2
+
+        if time.monotonic() > deadline:
+            raise RuntimeError(f"screen not ready after {timeout}s (available geometry {max_width}x{max_height})")
+
+        QApplication.processEvents()
+        time.sleep(0.05)
 
 def setGridSize(*size):
     """
