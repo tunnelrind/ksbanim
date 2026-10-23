@@ -69,6 +69,17 @@ from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QBuffer
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
 
+if QApplication.instance() is None:
+    # Fixed-function calls (display lists etc.) need a compatibility profile context
+    _default_format = QSurfaceFormat()
+    _default_format.setRenderableType(QSurfaceFormat.OpenGL)
+    _default_format.setVersion(2, 1)
+    _default_format.setProfile(QSurfaceFormat.CompatibilityProfile)
+    _default_format.setSamples(4)
+    _default_format.setAlphaBufferSize(8)
+    _default_format.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
+    QSurfaceFormat.setDefaultFormat(_default_format)
+
 app = QApplication.instance()
 if app is None:
     app = QApplication([])
@@ -4240,7 +4251,7 @@ class kMainWindow(QOpenGLWidget):
         self.setMouseTracking(True)
         self.mouse_pos = [0,0]
 
-        format = QSurfaceFormat()
+        format = QSurfaceFormat.defaultFormat()
         format.setSamples(4)
         format.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
         format.setAlphaBufferSize(8)  # Request an 8-bit alpha channel
@@ -4816,6 +4827,14 @@ def _getSample(name):
     
     return the_list 
 
+def _process_actions():
+    # Actions call shape._draw(), which issues GL calls and needs a current context
+    kstore.window.makeCurrent()
+    try:
+        action_queue.process()
+    finally:
+        kstore.window.doneCurrent()
+
 def _init():
     kstore.window.initLater()
     kstore.window.makeCurrent()
@@ -4987,7 +5006,7 @@ def run():
     action_queue.add(kMessage(" > end drawing (close with ESC or use the red X button on the top right)"))
     
     kstore.main_timer = QTimer()
-    kstore.main_timer.timeout.connect(lambda: action_queue.process())
+    kstore.main_timer.timeout.connect(_process_actions)
     kstore.main_timer.timeout.connect(lambda: kstore.window.update())
     kstore.main_timer.start(kstore.dt)
 
