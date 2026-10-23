@@ -4839,6 +4839,8 @@ def exception_hook(exctype, value, tb):
     _print_gl_info()
     print("", flush=True)
     quit = True
+    # a crash may come from an outdated version: make sure the update runs before exiting
+    _auto_update(wait=True)
     sys.exit(1)
 
 # ==================================== LIST SAMPLES ===========================================
