@@ -4698,6 +4698,29 @@ class kMainWindow(QOpenGLWidget):
 quit = False 
 
 
+def _print_gl_info():
+    def decode(value):
+        return value.decode(errors="replace") if isinstance(value, bytes) else str(value)
+
+    try:
+        window = kstore.window
+        made_current = False
+        if QOpenGLContext.currentContext() is None:
+            if window is None or not window.isValid():
+                print("OpenGL context: not created yet (no GL info available)")
+                return
+            window.makeCurrent()
+            made_current = True
+        try:
+            print(f"OpenGL version: {decode(glGetString(GL_VERSION))}")
+            print(f"GL_RENDERER:    {decode(glGetString(GL_RENDERER))}")
+            print(f"GL_VENDOR:      {decode(glGetString(GL_VENDOR))}")
+        finally:
+            if made_current:
+                window.doneCurrent()
+    except Exception as e:
+        print(f"OpenGL info unavailable: {e}")
+
 def exception_hook(exctype, value, tb):
     global quit 
 
@@ -4720,6 +4743,7 @@ def exception_hook(exctype, value, tb):
             print(f"line {lineno_str} {funcname_str} >>> {text}")
         num += 1
 
+    _print_gl_info()
     print("", flush=True)
     quit = True
     sys.exit(1)
@@ -4829,6 +4853,9 @@ def _getSample(name):
 
 def _process_actions():
     # Actions call shape._draw(), which issues GL calls and needs a current context
+    # the GL context only exists after the window was shown and initializeGL ran
+    if not kstore.window.isValid():
+        return
     kstore.window.makeCurrent()
     try:
         action_queue.process()
@@ -4878,7 +4905,7 @@ def createWindow(width=1000, height=1000):
     
     sys.excepthook = exception_hook
 
-    kstore.app = QApplication(sys.argv)
+    kstore.app = QApplication.instance() or QApplication(sys.argv)
 
     initSize = getInitWindowSize()
     kstore.window_size = initSize
