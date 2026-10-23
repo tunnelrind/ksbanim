@@ -1,4 +1,5 @@
 import os
+import re
 from setuptools import setup
 
 # Sichere, absolute Pfadermittlung für die README.md
@@ -17,9 +18,13 @@ if os.path.exists(readme_path):
 else:
     long_description = 'A module for animation based on PyQt5 and OpenGL'
 
+# single source of truth: __version__ in ksbanim.py (the module can't be imported here, it needs PyQt5)
+with open(os.path.join(BASE_DIR, 'ksbanim.py'), 'r', encoding='utf-8') as f:
+    version = re.search(r"^__version__\s*=\s*['\"]([^'\"]+)['\"]", f.read(), re.M).group(1)
+
 setup(
     name='ksbanim',
-    version='1.3.26',
+    version=version,
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',

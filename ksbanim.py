@@ -46,6 +46,8 @@ except Exception:
     raise
 import colorsys 
 
+__version__ = '1.3.27'
+
 RESET = "\033[0m"
 BOLD = "\033[1m"
 ITALIC = "\033[3m"
@@ -91,11 +93,7 @@ def _read_state():
         return {"version": text, "ok": True, "time": 0}  # older marker format: plain version
 
 def _installed_version():
-    try:
-        from importlib.metadata import version
-        return version(package_name)
-    except Exception:
-        return ""
+    return __version__
 
 def _install_running():
     # a lock younger than UPDATE_LOCK_MAX_AGE means another start is installing right now
@@ -110,11 +108,10 @@ def check_for_updates():
     if is_running_under_pdoc():
         return 
 
-    from importlib.metadata import version
     import requests
 
     try:
-        current_version = version(package_name)
+        current_version = __version__  # the code that is actually running
         response = requests.get(f'https://pypi.org/pypi/{package_name}/json', timeout=2)
         response.raise_for_status()
         latest_version = response.json()['info']['version']
@@ -216,12 +213,11 @@ def update_package():
 def announce_update_success():
     # the install runs detached and may finish after the program ended, so the success is
     # announced once at the next start, and only if this interpreter really runs the new version
-    from importlib.metadata import version
     state = _read_state()
     if not state or not state.get("ok") or state.get("announced") or not state.get("from"):
         return
     try:
-        if version(package_name) != state["version"]:
+        if __version__ != state["version"]:
             return
         state["announced"] = True
         with open(UPDATE_MARKER, "w") as f:
