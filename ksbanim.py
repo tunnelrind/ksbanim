@@ -8,7 +8,39 @@ import struct
 import copy 
 import atexit 
 from abc import ABC, abstractmethod 
-import numpy as np
+import platform
+import tempfile
+import faulthandler
+
+ERROR_LOG = os.path.join(tempfile.gettempdir(), "ksbanim_error.log")
+
+def _dump_error(stage):
+    # Write the failure with environment info to stderr and to a log file
+    report = (f"ksbanim failed during: {stage}\n"
+              f"python: {sys.executable} {sys.version}\n"
+              f"platform: {platform.platform()}\n"
+              f"DISPLAY={os.environ.get('DISPLAY')} QT_QPA_PLATFORM={os.environ.get('QT_QPA_PLATFORM')}\n\n"
+              + traceback.format_exc())
+    print(report, file=sys.stderr)
+    try:
+        with open(ERROR_LOG, "a") as f:
+            f.write(report + "\n" + "=" * 60 + "\n")
+        print(f"(error also saved to {ERROR_LOG})", file=sys.stderr)
+    except OSError:
+        pass
+
+try:
+    # hard crashes (segfaults in Qt/OpenGL) are dumped to the same log
+    _fault_file = open(ERROR_LOG, "a")
+    faulthandler.enable(file=_fault_file, all_threads=True)
+except Exception:
+    pass
+
+try:
+    import numpy as np
+except Exception:
+    _dump_error("import numpy")
+    raise
 import colorsys 
 
 RESET = "\033[0m"
@@ -60,11 +92,15 @@ def update_package():
     print(BOLD + RED + f"{package_name} has been updated to the latest version." + RESET)
     print("="*30)
 
-from OpenGL.GL import *
+try:
+    from OpenGL.GL import *
 
-from PyQt5.QtWidgets import QApplication, QDesktopWidget, QDockWidget, QOpenGLWidget
-from PyQt5.QtGui import QPainter, QColor, QFont, QFontMetrics, QSurfaceFormat, QOpenGLContext, QImage
-from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QBuffer
+    from PyQt5.QtWidgets import QApplication, QDesktopWidget, QDockWidget, QOpenGLWidget
+    from PyQt5.QtGui import QPainter, QColor, QFont, QFontMetrics, QSurfaceFormat, QOpenGLContext, QImage
+    from PyQt5.QtCore import Qt, QTimer, QElapsedTimer, QBuffer
+except Exception:
+    _dump_error("import OpenGL/PyQt5")
+    raise
 
 QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
 QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps)
@@ -80,9 +116,13 @@ if QApplication.instance() is None:
     _default_format.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
     QSurfaceFormat.setDefaultFormat(_default_format)
 
-app = QApplication.instance()
-if app is None:
-    app = QApplication([])
+try:
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+except Exception:
+    _dump_error("QApplication creation")
+    raise
 
 # ==================================== INTERPOLATION/ACTIONS ===========================================
 def interpolate(begin_value, end_value, fraction):
@@ -6196,7 +6236,11 @@ def drawList(the_list, width, height):
 
 
 if not is_running_under_pdoc():
-    createWindow()
+    try:
+        createWindow()
+    except Exception:
+        _dump_error("createWindow()")
+        raise
     atexit.register(run)
 
 # ==================================== TEST CODE ===========================================
