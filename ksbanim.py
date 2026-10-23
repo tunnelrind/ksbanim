@@ -4294,9 +4294,10 @@ class kMainWindow(QOpenGLWidget):
         self.mouse_pos = [0,0]
 
         format = QSurfaceFormat.defaultFormat()
-        format.setSamples(4)
-        format.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
-        format.setAlphaBufferSize(8)  # Request an 8-bit alpha channel
+        if QSurfaceFormat.defaultFormat() != QSurfaceFormat():
+            format.setSamples(4)
+            format.setSwapBehavior(QSurfaceFormat.DoubleBuffer)
+            format.setAlphaBufferSize(8)  # Request an 8-bit alpha channel
         self.setFormat(format)
 
         self.resize()
@@ -4970,6 +4971,15 @@ def createWindow(width=1000, height=1000):
 
     kstore.window = kMainWindow(*initSize)
     kstore.window.show()
+
+    if not kstore.window.isValid():
+        # the requested GL format (2.1 compat, 4x MSAA) is unsupported here: retry with Qt defaults
+        print(" > OpenGL context creation failed, retrying with default surface format", file=sys.stderr)
+        kstore.window.hide()
+        kstore.window.deleteLater()
+        QSurfaceFormat.setDefaultFormat(QSurfaceFormat())
+        kstore.window = kMainWindow(*initSize)
+        kstore.window.show()
 
     
     action_queue.add(kAction(_init))

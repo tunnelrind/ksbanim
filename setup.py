@@ -19,7 +19,7 @@ else:
 
 setup(
     name='ksbanim',
-    version='1.3.14',
+    version='1.3.15',
     py_modules=['ksbanim'],
     install_requires=[
         'PyQt5',
@@ -37,6 +37,6 @@ setup(
         'Programming Language :: Python :: 3',
         'Operating System :: OS Independent',
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     license="MIT",
 )
