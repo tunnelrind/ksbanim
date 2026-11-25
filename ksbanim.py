@@ -4671,7 +4671,7 @@ class kMainWindow(QOpenGLWidget):
             self._in_actions = False
 
     def clearGL(self):
-        glClearColor(*kstore.backgroundColor)
+        self.setBackgroundColorGL(kstore.backgroundColor)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         glLoadIdentity()
