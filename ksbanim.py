@@ -46,7 +46,7 @@ except Exception:
     raise
 import colorsys 
 
-__version__ = '1.3.29'
+__version__ = '1.3.30'
 
 RESET = "\033[0m"
 BOLD = "\033[1m"
